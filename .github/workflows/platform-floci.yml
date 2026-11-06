@@ -1,0 +1,70 @@
+# Plataforma AWS em emulador (floci) a cada PR: sem conta AWS, sem segredo, sem custo.
+# Prova que as 6 stacks Terraform aplicam e destroem limpo e que o GitOps renderiza.
+name: platform-floci
+
+on:
+  pull_request:
+    paths: ["platform/**", "repos/**", "gitops/**", "contracts/**", ".github/workflows/platform-floci.yml"]
+  push:
+    branches: [main]
+    paths: ["platform/**", "repos/**", "gitops/**", "contracts/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: platform-floci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  iac-e2e:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    services:
+      floci:
+        image: floci/floci:2.4.0
+        ports: ["4566:4566"]
+        volumes: ["/var/run/docker.sock:/var/run/docker.sock"]   # EKS (k3s) e ECR sobem containers reais
+        env:
+          FLOCI_SERVICES_ECR_URI_STYLE: path
+        options: >-
+          --health-cmd "bash -c '</dev/tcp/127.0.0.1/4566'" --health-interval 5s --health-retries 30
+    env:
+      LAB_CACHE_DIR: ${{ runner.temp }}/lab-cache
+      FLOCI_ENDPOINT: http://localhost.floci.io:4566
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true   # repos/enterprise-automation (módulos Terraform)
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.15.8
+          terraform_wrapper: false
+
+      - name: terraform fmt
+        run: terraform fmt -check -recursive platform/terraform
+
+      - name: GitOps renderiza (kustomize)
+        run: |
+          python gitops/gen.py
+          git diff --exit-code gitops/apps gitops/overlays gitops/env || (echo "gitops/ desatualizado: rode python gitops/gen.py" && exit 1)
+          kubectl kustomize gitops/overlays/floci > /dev/null
+
+      - name: providers.tf sincronizado com _shared
+        run: |
+          python platform/lab.py sync
+          git diff --exit-code platform/terraform || (echo "rode python platform/lab.py sync" && exit 1)
+
+      - name: up (00 -> 05) no floci
+        run: python platform/lab.py up --target floci
+
+      - name: kubectl no EKS emulado
+        run: |
+          python platform/lab.py kubeconfig --target floci
+          KUBECONFIG=platform/.kube/floci.yaml kubectl get nodes -o wide
+
+      - name: down (05 -> 00)
+        if: always()
+        run: python platform/lab.py down --target floci
