@@ -1,0 +1,22 @@
+# ArgoCD (chart argo/argo-cd) — perfil de laboratório: 1 réplica, recursos baixos, sem HA.
+# Instalar: helm upgrade --install argocd argo/argo-cd -n argocd --create-namespace -f platform/k8s/argocd-values.yaml
+global:
+  domain: argocd.local
+configs:
+  params:
+    server.insecure: true          # TLS terminado fora (port-forward no lab)
+controller:
+  resources: { requests: { cpu: 100m, memory: 256Mi }, limits: { memory: 768Mi } }
+server:
+  resources: { requests: { cpu: 50m, memory: 128Mi }, limits: { memory: 256Mi } }
+repoServer:
+  resources: { requests: { cpu: 50m, memory: 128Mi }, limits: { memory: 512Mi } }
+applicationSet:
+  enabled: true
+  resources: { requests: { cpu: 25m, memory: 64Mi }, limits: { memory: 128Mi } }
+notifications:
+  enabled: false
+dex:
+  enabled: false
+redis:
+  resources: { requests: { cpu: 25m, memory: 64Mi }, limits: { memory: 128Mi } }

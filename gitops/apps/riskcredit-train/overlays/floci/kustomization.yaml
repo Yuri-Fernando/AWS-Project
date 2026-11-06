@@ -1,0 +1,9 @@
+# GERADO por gitops/gen.py a partir de gitops/apps.json — edite o spec, não este arquivo.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: ecosystem
+resources: [../../base]
+images:
+  - name: riskcredit-train
+    newName: localhost:4566/000000000000/us-east-1/argus-platform/riskcredit-train
+    newTag: lab

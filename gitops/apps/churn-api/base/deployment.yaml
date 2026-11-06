@@ -1,0 +1,45 @@
+# GERADO por gitops/gen.py a partir de gitops/apps.json — edite o spec, não este arquivo.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: churn-api
+  labels: {app.kubernetes.io/name: churn-api, app.kubernetes.io/part-of: argus-ecosystem}
+  annotations: {argus.dev/source-repo: "Churn_intelligence"}
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels: {app.kubernetes.io/name: churn-api}
+  template:
+    metadata:
+      labels: {app.kubernetes.io/name: churn-api, app.kubernetes.io/part-of: argus-ecosystem}
+    spec:
+      securityContext: {runAsNonRoot: true, runAsUser: 10001, fsGroup: 10001, seccompProfile: {type: RuntimeDefault}}
+      containers:
+        - name: churn-api
+          image: churn-api
+          imagePullPolicy: IfNotPresent
+          ports:
+            - {name: http, containerPort: 8000}
+          envFrom:
+            - configMapRef: {name: platform-env, optional: true}
+          env:
+            []
+          resources:
+            requests: {cpu: 50m, memory: 256Mi}
+            limits: {memory: 512Mi}
+          securityContext: {allowPrivilegeEscalation: false, capabilities: {drop: [ALL]}}
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            failureThreshold: 6

@@ -1,0 +1,12 @@
+# GERADO por gitops/gen.py a partir de gitops/apps.json — edite o spec, não este arquivo.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: platform-env
+  namespace: ecosystem
+  labels: {app.kubernetes.io/part-of: argus-ecosystem}
+data:
+  AWS_ENDPOINT_URL: "http://floci:4566"
+  AWS_ACCESS_KEY_ID: "test"
+  AWS_SECRET_ACCESS_KEY: "test"
+  AWS_DEFAULT_REGION: "us-east-1"

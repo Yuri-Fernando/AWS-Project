@@ -1,0 +1,39 @@
+# Material privado: conversa original e handoff (podem conter dados pessoais/da conta) — nunca versionar
+_private/
+
+# Estado e credenciais do laboratório (state local, kubeconfig com chave IAM do emulador, senha do Grafana)
+platform/.state/
+platform/.kube/
+envs/real/backend.hcl
+envs/real/*.auto.tfvars
+.mcp.json
+
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+# Python / caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# Segredos genéricos
+.env
+.env.*
+!*.example
+*.pem
+*.key
+
+# SO
+.DS_Store
+Thumbs.db
+desktop.ini

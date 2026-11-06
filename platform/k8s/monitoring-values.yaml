@@ -1,0 +1,43 @@
+# kube-prometheus-stack — substitui AMP scraper + Amazon Managed Grafana no lab (aulas de Observabilidade).
+# Instalar: helm upgrade --install monitoring prometheus-community/kube-prometheus-stack -n monitoring --create-namespace \
+#             -f platform/k8s/monitoring-values.yaml --set grafana.adminPassword="$GRAFANA_ADMIN_PASSWORD"
+# (senha vem do ambiente; nunca versionar)
+alertmanager:
+  enabled: false
+prometheus:
+  prometheusSpec:
+    retention: 12h
+    resources: { requests: { cpu: 50m, memory: 256Mi }, limits: { memory: 768Mi } }
+    serviceMonitorSelectorNilUsesHelmValues: false   # descobre ServiceMonitors dos apps do ecossistema
+    podMonitorSelectorNilUsesHelmValues: false
+    # TARGET=aws: descomente para enviar ao AMP (stack 05) via SigV4
+    # remoteWrite:
+    #   - url: <amp_remote_write_url>
+    #     sigv4: { region: us-east-1 }
+grafana:
+  resources: { requests: { cpu: 50m, memory: 192Mi }, limits: { memory: 512Mi } }   # 256Mi -> OOMKilled no boot
+  defaultDashboardsTimezone: America/Sao_Paulo
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+        - name: course
+          folder: DevOps na Nuvem
+          type: file
+          options: { path: /var/lib/grafana/dashboards/course }
+  dashboards:
+    course:
+      node-exporter-full:          # mesmo dashboard da aula 07 (Node Exporter Dashboard)
+        gnetId: 1860
+        revision: 37
+        datasource: Prometheus
+prometheus-node-exporter:
+  resources: { requests: { cpu: 10m, memory: 32Mi }, limits: { memory: 64Mi } }
+  # nó do EKS emulado é um container k3s: "/" não é mount compartilhado -> montar o rootfs do host falha
+  # (path "/" is mounted on "/" but it is not a shared or slave mount). Métricas de filesystem ficam parciais.
+  hostRootFsMount:
+    enabled: false
+kube-state-metrics:
+  resources: { requests: { cpu: 10m, memory: 64Mi }, limits: { memory: 128Mi } }
+prometheusOperator:
+  resources: { requests: { cpu: 50m, memory: 128Mi }, limits: { memory: 256Mi } }

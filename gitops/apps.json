@@ -1,0 +1,27 @@
+{
+  "namespace": "ecosystem",
+  "registry": {
+    "floci": "localhost:4566/000000000000/us-east-1/argus-platform",
+    "aws": "ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/argus-platform"
+  },
+  "apps": {
+    "argus-api":       {"repo": "Argus",                               "port": 8000, "health": "/health", "cpu": "50m", "memory": "256Mi", "limit": "512Mi",
+                        "env": {"ARGUS_ENV": "lab"}},
+    "retentiq-api":    {"repo": "RetentIQ",                            "port": 4000, "health": "/health", "cpu": "50m", "memory": "128Mi", "limit": "384Mi",
+                        "env": {"PORT": "4000", "NODE_ENV": "production", "WEB_ORIGIN": "*"}, "secretEnv": ["JWT_SECRET"]},
+    "themis-api":      {"repo": "ThemisAI",                            "port": 8000, "health": "/health", "cpu": "50m", "memory": "256Mi", "limit": "512Mi",
+                        "env": {}},
+    "omnimind-api":    {"repo": "OmniMind_AI_OS",                      "port": 8000, "health": null,      "cpu": "50m", "memory": "256Mi", "limit": "512Mi",
+                        "env": {"OPENAI_API_KEY": "lab-placeholder-sem-llm", "OPENAI_BASE_URL": "https://api.openai.com/v1"},
+                        "_nota": "build_graph() instancia ChatOpenAI no import: sem chave o processo morre. Placeholder sobe a API; /ask exige chave real (Secret) ou OPENAI_BASE_URL apontando para um endpoint compatível gratuito (ex.: Ollama /v1)."},
+    "churn-api":       {"repo": "Churn_intelligence",                  "port": 8000, "health": "/health", "cpu": "50m", "memory": "256Mi", "limit": "512Mi",
+                        "env": {}},
+    "creditscore-app": {"repo": "Credit-Score-Predictor---AWS-Streamlit", "port": 8501, "health": "/_stcore/health", "cpu": "50m", "memory": "192Mi", "limit": "384Mi",
+                        "env": {"CREDITSCORE_API_URL": "http://creditscore-api.invalid/predict"}}
+  },
+  "jobs": {
+    "riskcredit-train": {"repo": "RiskCredit", "cpu": "250m", "memory": "512Mi", "limit": "1536Mi",
+                         "env": {"ARTIFACT_BUCKET": "argus-platform-lab-ml-artifacts"}}
+  },
+  "floci_env": {"AWS_ENDPOINT_URL": "http://floci:4566", "AWS_ACCESS_KEY_ID": "test", "AWS_SECRET_ACCESS_KEY": "test", "AWS_DEFAULT_REGION": "us-east-1"}
+}

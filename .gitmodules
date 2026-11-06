@@ -1,0 +1,3 @@
+[submodule "repos/enterprise-automation"]
+	path = repos/enterprise-automation
+	url = https://github.com/Yuri-Fernando/enterprise-cloud-automation-platform.git

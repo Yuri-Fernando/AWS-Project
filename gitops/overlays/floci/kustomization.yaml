@@ -1,0 +1,12 @@
+# GERADO por gitops/gen.py a partir de gitops/apps.json — edite o spec, não este arquivo.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../env/floci
+  - ../../apps/argus-api/overlays/floci
+  - ../../apps/retentiq-api/overlays/floci
+  - ../../apps/themis-api/overlays/floci
+  - ../../apps/omnimind-api/overlays/floci
+  - ../../apps/churn-api/overlays/floci
+  - ../../apps/creditscore-app/overlays/floci
+  - ../../apps/riskcredit-train/overlays/floci

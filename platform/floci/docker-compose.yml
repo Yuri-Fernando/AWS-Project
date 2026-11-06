@@ -1,0 +1,43 @@
+# Floci — emulador AWS local (MIT, https://github.com/floci-io/floci). Sem conta AWS, sem custo.
+# Subir:  docker compose -f platform/floci/docker-compose.yml up -d
+# Usar:   set -a; . platform/floci/floci.env.example; set +a   (credenciais fictícias do emulador)
+name: floci-lab
+
+services:
+  floci:
+    image: floci/floci:2.4.0          # versão fixa: reprodutível (não usar latest)
+    container_name: floci
+    ports:
+      - "4566:4566"                   # endpoint único de todos os serviços AWS emulados
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock   # EKS(k3s), ECR, Lambda, RDS sobem containers reais
+      - floci-data:/app/data
+    environment:
+      FLOCI_HOSTNAME: floci
+      FLOCI_BASE_URL: http://floci:4566
+      FLOCI_STORAGE_MODE: persistent              # estado sobrevive a restart do container
+      FLOCI_STORAGE_PERSISTENT_PATH: /app/data
+      FLOCI_SERVICES_DOCKER_NETWORK: floci_default
+      FLOCI_SERVICES_EKS_DOCKER_NETWORK: floci_default
+      FLOCI_SERVICES_UI_ENABLED: "true"           # console local em http://localhost:4500
+      # Windows/Docker Desktop não resolvem *.localhost: URIs do ECR no estilo path
+      #   localhost:4566/<conta>/<região>/<repo>  (o mirror do k3s já aceita localhost:4566)
+      FLOCI_SERVICES_ECR_URI_STYLE: path
+      # reiniciar o floci não derruba o cluster EKS (k3s) nem o registry: o próximo start os adota
+      FLOCI_SERVICES_EKS_KEEP_RUNNING_ON_SHUTDOWN: "true"
+      FLOCI_SERVICES_ECR_KEEP_RUNNING_ON_SHUTDOWN: "true"
+      # Lambdas (containers na rede floci_default) falhavam com "Failed to get next invocation":
+      # a autodetecção do host da Runtime API não funciona no Docker Desktop/WSL2 -> usa o nome do serviço
+      FLOCI_SERVICES_LAMBDA_DOCKER_HOST_OVERRIDE: floci
+    networks:
+      floci_default:
+        aliases: [localhost.floci.io]
+    restart: unless-stopped
+
+volumes:
+  floci-data:
+    labels: { floci: "true" }
+
+networks:
+  floci_default:
+    name: floci_default
