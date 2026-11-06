@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Yuri-Fernando/AWS-Project/contracts/model_manifest.v1.schema.json",
+  "title": "model_manifest.v1",
+  "description": "Artefato de modelo aprovado publicado no S3. Produtor: RiskCredit (Job platform/images/riskcredit-train/publish.py). Consumidor: Credit Score (serving).",
+  "type": "object",
+  "required": ["model", "prefix", "files"],
+  "properties": {
+    "model": {"type": "string", "minLength": 1},
+    "prefix": {"type": "string", "pattern": "^[a-z0-9_-]+/champion/[0-9]{8}T[0-9]{6}Z$"},
+    "files": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+    }
+  },
+  "additionalProperties": true
+}

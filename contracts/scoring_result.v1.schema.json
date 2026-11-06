@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Yuri-Fernando/AWS-Project/contracts/scoring_result.v1.schema.json",
+  "title": "scoring_result.v1",
+  "description": "Resposta de serving de modelo. Produtores: Churn Intelligence (/predict) e Credit Score (Lambda predict). Consumidores: OmniMind, dashboards.",
+  "anyOf": [
+    {
+      "title": "churn",
+      "type": "object",
+      "required": ["user_id", "churn_score", "risk_level"],
+      "properties": {
+        "user_id": {"type": "string"},
+        "churn_score": {"type": "number", "minimum": 0, "maximum": 1},
+        "segment": {"type": "string"},
+        "action": {"type": "string"},
+        "risk_level": {"type": "string"}
+      }
+    },
+    {
+      "title": "credit",
+      "type": "object",
+      "required": ["model_version", "results"],
+      "properties": {
+        "model_version": {"type": "string"},
+        "results": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["pd", "risk_band"],
+            "properties": {
+              "pd": {"type": "number", "minimum": 0, "maximum": 1},
+              "risk_band": {"type": "string", "enum": ["A", "B", "C", "D", "E", "F"]}
+            }
+          }
+        }
+      }
+    }
+  ]
+}

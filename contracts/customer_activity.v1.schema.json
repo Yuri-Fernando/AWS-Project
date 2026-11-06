@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Yuri-Fernando/AWS-Project/contracts/customer_activity.v1.schema.json",
+  "title": "customer_activity.v1",
+  "description": "Evento de atividade de cliente (dados sintéticos, sem PII real). Produtor: RetentIQ. Consumidor: Argus (ingestão Bronze). Status: contrato definido; integração produtor->fila->consumidor ainda PLANNED (MASTER-002/003).",
+  "type": "object",
+  "required": ["event_id", "event_time", "source", "schema_version", "tenant_id", "customer_id", "event_type", "correlation_id"],
+  "properties": {
+    "event_id": {"type": "string", "minLength": 8},
+    "event_time": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$"},
+    "source": {"type": "string", "enum": ["retentiq"]},
+    "schema_version": {"type": "string", "enum": ["customer_activity.v1"]},
+    "tenant_id": {"type": "string"},
+    "customer_id": {"type": "string"},
+    "event_type": {"type": "string", "enum": ["signup", "login", "purchase", "session", "cancel_request", "retention_offer"]},
+    "correlation_id": {"type": "string"},
+    "payload": {"type": "object"}
+  },
+  "additionalProperties": false
+}

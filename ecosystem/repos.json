@@ -1,0 +1,79 @@
+{
+  "_doc": "Manifesto do ecossistema: como o Master (este repo) se comunica com cada repositório. ref = commit fixado (reprodutível). Atualize com: python tools/repos.py pin",
+  "master": {"github": "https://github.com/Yuri-Fernando/AWS-Project.git", "status": "repo GitHub ainda não criado (push via @devops)"},
+  "repos": {
+    "enterprise": {
+      "github": "https://github.com/Yuri-Fernando/enterprise-cloud-automation-platform.git",
+      "local": "Enterprise Cloud Automation Platform", "branch": "feat/floci-local-platform",
+      "how": "submodule", "path": "repos/enterprise-automation",
+      "plane": "control", "role": "biblioteca de módulos Terraform (networking, iam, eks, budget, monitoring)",
+      "consumed_by_master": ["platform/terraform/01-networking", "platform/terraform/02-eks", "platform/terraform/03-ci-cd"]
+    },
+    "argus": {
+      "github": "https://github.com/Yuri-Fernando/Argus.git", "local": "ArgusAI", "branch": "master",
+      "ref": "beffdbbdadc3a54d494bbf20ee8f0e471299d33c", "how": "image",
+      "plane": "data", "role": "produto principal: lakehouse, MDM, insights de cliente",
+      "image": "argus-api", "port": 8000, "health": "/health",
+      "produces": ["gold_customer (S3)"], "consumes": ["customer_activity.v1"]
+    },
+    "retentiq": {
+      "github": "https://github.com/Yuri-Fernando/retentiq.git", "local": "RetentIQ", "branch": "main",
+      "ref": "80a10a5c075f67464b3e7cf5aa1c080faca1406b", "how": "image", "context": "apps/api",
+      "plane": "data", "role": "SaaS de retenção: produtor de eventos de cliente",
+      "image": "retentiq-api", "port": 4000, "health": "/health",
+      "produces": ["customer_activity.v1"]
+    },
+    "themis": {
+      "github": "https://github.com/Yuri-Fernando/themis-ai.git", "local": "ThemisIA", "branch": "main",
+      "ref": "fc69a8eca107232da65148f3f8b1bfe2a95fb892", "how": "image",
+      "plane": "intelligence", "role": "governança de IA: policy gate de PII/LGPD antes de agentes e serving",
+      "image": "themis-api", "port": 8000, "health": "/health",
+      "produces": ["governance_decision.v1"]
+    },
+    "omnimind": {
+      "github": "https://github.com/Yuri-Fernando/OmniMind_AI_OS.git", "local": "Agente AIOS", "branch": "main",
+      "ref": "c3e0d0ad626bc9369b90ef8473ef6594d417c7dd", "how": "image",
+      "plane": "intelligence", "role": "agente/RAG que consome serviços governados (/ask requer LLM)",
+      "image": "omnimind-api", "port": 8000, "health": "/docs",
+      "consumes": ["scoring_result.v1", "governance_decision.v1"]
+    },
+    "churn": {
+      "github": "https://github.com/Yuri-Fernando/Churn_intelligence.git", "local": "Comportamento e Churn", "branch": "master",
+      "ref": "3ce2fe0401bdd3f9ff25aa502cd4642d5c0925af", "how": "image",
+      "plane": "intelligence", "role": "serving do modelo de churn",
+      "image": "churn-api", "port": 8000, "health": "/health",
+      "produces": ["scoring_result.v1"]
+    },
+    "riskcredit": {
+      "github": "https://github.com/Yuri-Fernando/RiskCredit.git", "local": "Risco de Credito", "branch": "main",
+      "ref": "6f9f0cb8284ef5f6926052800b3e4a1dddc619eb", "how": "job",
+      "plane": "intelligence", "role": "treino champion/challenger de risco de crédito; publica artefato no S3",
+      "image": "riskcredit-train",
+      "produces": ["model_manifest.v1 (s3://argus-platform-lab-ml-artifacts/riskcredit/champion/)"]
+    },
+    "creditscore": {
+      "github": "https://github.com/Yuri-Fernando/Credit-Score-Predictor---AWS-Streamlit.git", "local": "meu-projeto-aws", "branch": "main",
+      "ref": "38b92b1ffbff0c06c36c7f6cebf8284e2dbb4f0d", "how": "image+terraform",
+      "plane": "intelligence", "role": "serving serverless de crédito (Lambda + API Gateway + DynamoDB) e front Streamlit",
+      "image": "creditscore-app", "port": 8501, "health": "/_stcore/health",
+      "terraform": "infra/terraform", "lambda_package": "platform/serverless/package_creditscore.py",
+      "consumes": ["model_manifest.v1"], "produces": ["scoring_result.v1"]
+    },
+    "ia_agentica": {
+      "github": "https://github.com/Yuri-Fernando/IA_Agentica.git", "how": "reference",
+      "plane": "tooling", "role": "bancada de agentes/skills (não é dependência de runtime)"
+    },
+    "hub": {
+      "github": "https://github.com/Yuri-Fernando/Projetos_Pessoais.git", "how": "reference",
+      "plane": "catalog", "role": "catálogo de submodules (receberá este Master e os 2 repos do curso)"
+    },
+    "course_dvn_workshop": {
+      "github": "https://github.com/kenerry-serain/dvn-workshop-maio.git", "how": "reference",
+      "plane": "reference", "role": "IaC do workshop (referência; reescrito em platform/terraform)"
+    },
+    "course_eks_express": {
+      "github": "https://github.com/kenerry-serain/eks-express-iac.git", "how": "reference",
+      "plane": "reference", "role": "IaC do eks-express (referência; Karpenter/WAF/AMP)"
+    }
+  }
+}

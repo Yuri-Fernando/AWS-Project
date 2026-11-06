@@ -1,0 +1,32 @@
+{
+  "mcpServers": {
+    "terraform": {
+      "command": "docker",
+      "args": ["run", "-i", "--rm", "hashicorp/terraform-mcp-server"]
+    },
+    "aws-docs": {
+      "command": "uvx",
+      "args": ["awslabs.aws-documentation-mcp-server@latest"],
+      "env": {"FASTMCP_LOG_LEVEL": "ERROR"}
+    },
+    "aws-api-readonly": {
+      "command": "uvx",
+      "args": ["awslabs.aws-api-mcp-server@latest"],
+      "env": {
+        "AWS_API_MCP_PROFILE_NAME": "argus-lab-readonly",
+        "AWS_REGION": "us-east-1",
+        "READ_OPERATIONS_ONLY": "true",
+        "FASTMCP_LOG_LEVEL": "ERROR"
+      }
+    },
+    "eks-readonly": {
+      "command": "uvx",
+      "args": ["awslabs.eks-mcp-server@latest"],
+      "env": {
+        "AWS_PROFILE": "argus-lab-readonly",
+        "AWS_REGION": "us-east-1",
+        "FASTMCP_LOG_LEVEL": "ERROR"
+      }
+    }
+  }
+}
