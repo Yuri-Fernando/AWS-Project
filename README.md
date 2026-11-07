@@ -4,9 +4,9 @@
 
 [![platform-floci](https://github.com/Yuri-Fernando/AWS-Project/actions/workflows/platform-floci.yml/badge.svg)](.github/workflows/platform-floci.yml)
 ![e2e](https://img.shields.io/badge/e2e%20local-13%2F13-0a8a0a)
-![stacks](https://img.shields.io/badge/stacks%20Terraform-6%2F6%20no%20floci-0a8a0a)
+![stacks](https://img.shields.io/badge/stacks%20Terraform-7%2F7%20no%20floci-0a8a0a)
 ![apps](https://img.shields.io/badge/apps%20no%20EKS%20emulado-6%20%2B%201%20job-2a78d6)
-![versão](https://img.shields.io/badge/vers%C3%A3o-v0.1.0-4a5563) ![license](https://img.shields.io/badge/license-MIT-4a5563)
+![versão](https://img.shields.io/badge/vers%C3%A3o-v0.2.0-4a5563) ![license](https://img.shields.io/badge/license-MIT-4a5563)
 
 ## Status
 
@@ -18,9 +18,11 @@ recurso na AWS real.
 
 | Área | Estado | Evidência |
 |---|---|---|
-| IaC (6 stacks, alvo duplo) | ✅ aplicado no floci | `lab.py plan --target free` → "No changes" nas 6 stacks |
+| IaC (7 stacks, alvo duplo) | ✅ aplicado no floci | `lab.py plan --target free` → "No changes" |
 | EKS emulado + GitOps + observabilidade | ✅ | ArgoCD 5/5, kube-prometheus-stack 5/5, `ecosystem` 6 Running + job Completed |
 | Comunicação com os repos | ✅ manifesto + contratos | `ecosystem/repos.json`, `tools/repos.py status`, `contracts/*.schema.json` |
+| Roles IAM + guardrails | ✅ no floci | stack `06-identity`, [`docs/IAM_ROLES.md`](docs/IAM_ROLES.md) |
+| Dados fora da AWS | ✅ local · R2 bloqueado por credencial | `tools/offload.py` (S3 + DynamoDB → `D:rgus-data`) |
 | Perfil `real` (AWS) | ⏳ preparado | `envs/real/` — exige aprovação e guardrails do plano v0.2 |
 | MCP | 🟡 configurado, não testado | `mcp/free.mcp.json`, `mcp/real.mcp.json` |
 | CI no GitHub | ⏳ escrito, não executado | `.github/workflows/platform-floci.yml` |
@@ -145,7 +147,7 @@ IAM/OIDC/IRSA, S3, Lambda, API Gateway v2, DynamoDB, Cognito, KMS, Step Function
 
 | Medida | Valor | Origem |
 |---|---|---|
-| Recursos por stack (floci) | 00: 5 · 01: 23 · 02: 27 · 03: 4 · 04: 1 · 05: log group | saída do `terraform apply` |
+| Recursos por stack (floci) | 00: 5 · 01: 23 · 02: 27 · 03: 4 · 04: 1 · 05: log group · 06: 19 | saída do `terraform apply` |
 | Verificações ponta a ponta | 13/13 | `platform/e2e.py` (relatório em `platform/.state/e2e-floci.json`, local) |
 | Treino RiskCredit no cluster | champion xgboost, ganho de Gini 0,034, 8 artefatos | log do Job |
 | Lambda Credit Score | HTTP 200, PD e faixa de risco, gravação no DynamoDB | `e2e.py` |
@@ -157,7 +159,25 @@ Números são do laboratório local; não representam desempenho ou custo em AWS
 
 ## 🖼️ Evidências
 
-Saídas de comando e relatórios gerados localmente (`platform/.state/`, não versionado). Capturas de tela: pendentes.
+Capturadas por `platform/evidence.py` (Playwright headless) em 07/11/2026, perfil `free`.
+
+<p align="center">
+  <a href="docs/evidence/grafana-node-exporter-full.png"><img src="docs/evidence/grafana-node-exporter-full.png" width="860"></a><br>
+  <sub>Grafana OSS — dashboard Node Exporter Full (o mesmo da aula 07), métricas reais do nó do EKS emulado</sub>
+</p>
+<p align="center">
+  <a href="docs/evidence/grafana-k8s-namespace-ecosystem.png"><img src="docs/evidence/grafana-k8s-namespace-ecosystem.png" width="420"></a>
+  <a href="docs/evidence/prometheus-targets.png"><img src="docs/evidence/prometheus-targets.png" width="420"></a><br>
+  <sub>Pods do namespace <code>ecosystem</code> (requests via kube-state-metrics) · alvos do Prometheus (kubelet/apiserver em 401 — ver Limitações)</sub>
+</p>
+<p align="center">
+  <a href="docs/evidence/creditscore-streamlit.png"><img src="docs/evidence/creditscore-streamlit.png" width="420"></a>
+  <a href="docs/evidence/churn-api-swagger.png"><img src="docs/evidence/churn-api-swagger.png" width="420"></a><br>
+  <sub>Front Streamlit do Credit Score e Swagger da API de churn, servidos pelo cluster</sub>
+</p>
+
+Outras: `docs/evidence/grafana-k8s-cluster-compute.png`, `docs/evidence/argocd-applications.png` (ArgoCD instalado,
+sem Applications até o push do repositório).
 
 ---
 
@@ -196,6 +216,7 @@ perfil free completo ─► CI verde no GitHub ─► MCP validado ─► sessã
 | Versão | Data | O que mudou |
 |---|---|---|
 | v0.1.0 | 2026-11-06 | Master criado: plataforma (movida do Enterprise), perfis `free`/`real`, manifesto dos repos, contratos, MCP, e2e 13/13 |
+| v0.2.0 | 2026-11-07 | Stack `06-identity` (deployer com MFA, MCP somente leitura, `free-plan-guard`, budgets sem créditos, Pod Identity por app — 19 recursos no floci), `tools/offload.py` (dados fora da AWS), evidências visuais, runbook da AWS real |
 
 Histórico de decisões: [`docs/plans/`](docs/plans/).
 
@@ -242,7 +263,7 @@ AWS Project/
 ├── envs/            # free (floci) e real (AWS)
 ├── mcp/             # perfis MCP free/real
 ├── repos/           # enterprise-automation (submodule: módulos Terraform)
-├── tools/           # repos.py, mcp_profile.py, course_kb/ (extração de videoaulas)
+├── tools/           # repos.py, mcp_profile.py, offload.py (dados fora da AWS), course_kb/ (extração de videoaulas)
 └── docs/            # floci-compat-matrix.md, plans/
 ```
 Não versionado: `_private/` (conversa e handoff originais), `platform/.state` e `platform/.kube` (state local, kubeconfig
@@ -258,6 +279,8 @@ com chave IAM do emulador, senha do Grafana), `.mcp.json`, base de conhecimento 
 | [`docs/floci-compat-matrix.md`](docs/floci-compat-matrix.md) | compatibilidade do emulador e contornos |
 | [`envs/free/README.md`](envs/free/README.md) · [`envs/real/README.md`](envs/real/README.md) | perfis |
 | [`mcp/README.md`](mcp/README.md) | servidores MCP e ativação |
+| [`docs/IAM_ROLES.md`](docs/IAM_ROLES.md) | todas as roles/políticas (curso + plano), quem usa, permissões, stack |
+| [`docs/AWS_REAL_MCP_RUNBOOK.md`](docs/AWS_REAL_MCP_RUNBOOK.md) | sessões na AWS real via MCP, custos, e o que acontece quando os créditos acabam |
 | [`docs/plans/`](docs/plans/) | planos v0.1 → v0.2 → ação v1 → 2 dias |
 | [`tools/course_kb/README.md`](tools/course_kb/README.md) | extração de conhecimento de videoaulas |
 
@@ -269,6 +292,10 @@ com chave IAM do emulador, senha do Grafana), `.mcp.json`, base de conhecimento 
   e SageMaker Model Package Group; add-ons EKS restritos a 4. Resultados aqui são **FLOCI_LOCAL**.
 - OmniMind sobe com chave de LLM fictícia: `/ask` só responde com chave real ou endpoint compatível.
 - Nó emulado no limite de memória; o node-exporter roda sem montar o rootfs do host.
+- Prometheus recebe **401** do kubelet (cAdvisor) e do apiserver no EKS emulado: painéis de uso de CPU/memória por pod
+  ficam vazios (métricas de nó, kube-state-metrics, CoreDNS, Grafana e Prometheus funcionam). Próximo passo: investigar a
+  autenticação de tokens de ServiceAccount do k3s configurado pelo floci.
+- Roles de workload (Pod Identity) já existem, mas os apps ainda usam credencial estática do emulador (`docs/IAM_ROLES.md`).
 - O submodule `repos/enterprise-automation` aponta para commit ainda não enviado ao GitHub.
 
 ---

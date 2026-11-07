@@ -1,0 +1,12 @@
+{
+  "target": "floci",
+  "shots": [
+    "grafana-node-exporter-full.png",
+    "grafana-k8s-cluster-compute.png",
+    "grafana-k8s-namespace-ecosystem.png",
+    "prometheus-targets.png",
+    "creditscore-streamlit.png",
+    "churn-api-swagger.png",
+    "argocd-applications.png"
+  ]
+}
