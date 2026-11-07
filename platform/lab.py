@@ -30,7 +30,7 @@ except Exception:
 ROOT = Path(__file__).resolve().parent
 TF = ROOT / "terraform"
 SHARED = TF / "_shared"
-STACKS = ["00-backend", "01-networking", "02-eks", "03-ci-cd", "04-security", "05-monitoring"]
+STACKS = ["00-backend", "01-networking", "02-eks", "03-ci-cd", "04-security", "05-monitoring", "06-identity"]
 FLOCI = os.environ.get("FLOCI_ENDPOINT", "http://localhost.floci.io:4566")
 # .terraform e cache de providers FORA da pasta sincronizada (Google Drive trava com milhares de arquivos)
 CACHE = Path(os.environ.get("LAB_CACHE_DIR", r"D:\Claude Temp\cache" if Path("D:/").exists() else Path.home() / ".cache"))

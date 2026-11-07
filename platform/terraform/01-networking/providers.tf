@@ -68,6 +68,7 @@ provider "aws" {
 
   endpoints {
     acm            = var.aws_endpoint
+    budgets        = var.aws_endpoint
     amp            = var.aws_endpoint
     cloudwatch     = var.aws_endpoint
     dynamodb       = var.aws_endpoint
