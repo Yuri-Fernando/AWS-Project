@@ -1,32 +1,19 @@
 {
+  "_doc": "Perfil real: AWS MCP Server gerenciado (Agent Toolkit for AWS) em modo SOMENTE LEITURA via proxy SigV4, com o perfil argus-lab-readonly. Criação/destruição de recursos é feita pelo Terraform (lab.py --target real) com a role de deploy + MFA. Substitui os antigos aws-api-mcp-server e aws-documentation-mcp-server, como recomenda a AWS.",
   "mcpServers": {
-    "terraform": {
-      "command": "docker",
-      "args": ["run", "-i", "--rm", "hashicorp/terraform-mcp-server:1.4.1"]
-    },
-    "aws-docs": {
+    "aws-mcp-readonly": {
       "command": "uvx",
-      "args": ["awslabs.aws-documentation-mcp-server@1.2.3"],
-      "env": {"FASTMCP_LOG_LEVEL": "ERROR"}
-    },
-    "aws-api-readonly": {
-      "command": "uvx",
-      "args": ["awslabs.aws-api-mcp-server@1.6.0"],
-      "env": {
-        "AWS_API_MCP_PROFILE_NAME": "argus-lab-readonly",
-        "AWS_REGION": "us-east-1",
-        "READ_OPERATIONS_ONLY": "true",
-        "FASTMCP_LOG_LEVEL": "ERROR"
-      }
+      "args": ["mcp-proxy-for-aws-cli==1.7.0", "https://aws-mcp.us-east-1.api.aws/mcp",
+               "--profile", "argus-lab-readonly", "--read-only", "--metadata", "AWS_REGION=us-east-1"]
     },
     "eks-readonly": {
       "command": "uvx",
       "args": ["awslabs.eks-mcp-server@0.2.1"],
-      "env": {
-        "AWS_PROFILE": "argus-lab-readonly",
-        "AWS_REGION": "us-east-1",
-        "FASTMCP_LOG_LEVEL": "ERROR"
-      }
+      "env": {"AWS_PROFILE": "argus-lab-readonly", "AWS_REGION": "us-east-1", "FASTMCP_LOG_LEVEL": "ERROR"}
+    },
+    "terraform": {
+      "command": "docker",
+      "args": ["run", "-i", "--rm", "hashicorp/terraform-mcp-server:1.4.1"]
     }
   }
 }

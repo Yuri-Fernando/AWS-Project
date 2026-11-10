@@ -37,8 +37,9 @@ Por isso: (1) a policy `free-plan-guard` nega os gatilhos; (2) tudo que importa 
 inventário por tag vazio.
 
 ## 4. Papel do MCP em cada sessão
-- **Antes:** `aws-docs` + `terraform` (registry) para revisar recursos; `aws-api-readonly` para conferir saldo, quotas e
-  recursos órfãos.
+- **Antes:** `aws-mcp-readonly` (AWS MCP Server gerenciado: documentação, skills e chamadas de leitura) + `terraform`
+  (registry) para revisar recursos, conferir saldo, quotas e recursos órfãos.
 - **Durante:** `eks-readonly` para listar nodes/pods e diagnosticar (como no Dia 2 do curso).
-- **Depois:** `aws-api-readonly` lista tudo com a tag `Project=argus-platform` para provar que o teardown zerou.
-- Escrita via MCP na AWS real: **não** nesta fase (só Terraform com o deployer + MFA).
+- **Depois:** `aws-mcp-readonly` lista tudo com a tag `Project=argus-platform` para provar que o teardown zerou.
+- Escrita via MCP na AWS real: **não** nesta fase (só Terraform com o deployer + MFA). Dupla barreira: o proxy roda com
+  `--read-only` e a policy `free-plan-guard` nega criações caras quando `aws:ViaAWSMCPService = true`.

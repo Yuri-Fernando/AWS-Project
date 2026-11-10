@@ -83,6 +83,19 @@ resource "aws_iam_policy" "free_plan_guard" {
           "sagemaker:CreateEndpoint", "sagemaker:CreateEndpointConfig"
         ]
         Resource = "*"
+      },
+      {
+        # O AWS MCP Server marca toda chamada do agente com aws:ViaAWSMCPService; aqui o agente não cria nada caro,
+        # mesmo que alguém o configure sem --read-only. Criação desses recursos só via Terraform (deployer + MFA).
+        Sid    = "NoCostlyCreatesViaAgent"
+        Effect = "Deny"
+        Action = [
+          "ec2:RunInstances", "ec2:CreateNatGateway", "ec2:AllocateAddress", "eks:CreateCluster", "eks:CreateNodegroup",
+          "elasticloadbalancing:CreateLoadBalancer", "rds:CreateDBInstance", "rds:CreateDBCluster",
+          "elasticache:CreateCacheCluster", "es:CreateDomain", "redshift:CreateCluster", "kafka:CreateCluster"
+        ]
+        Resource  = "*"
+        Condition = { Bool = { "aws:ViaAWSMCPService" = "true" } }
       }
     ]
   })

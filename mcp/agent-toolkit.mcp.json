@@ -1,0 +1,10 @@
+{
+  "_doc": "Espelho do servidor que o plugin aws-core (Agent Toolkit for AWS) instala no Claude Code. Usado só por tools/mcp_smoke.py para validar a conexão. Sem credencial (--skip-auth): documentação e skills; com credencial: chamadas à conta.",
+  "mcpServers": {
+    "aws-mcp": {
+      "command": "uvx",
+      "args": ["mcp-proxy-for-aws-cli==1.7.0", "https://aws-mcp.us-east-1.api.aws/mcp", "--skip-auth",
+               "--metadata", "INSTALL_SOURCE=agent-toolkit-core"]
+    }
+  }
+}

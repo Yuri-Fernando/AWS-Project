@@ -29,6 +29,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 # chamada de leitura por ferramenta (primeira que existir no servidor)
 READ_CALLS = [
+    ("aws___search_documentation", {"search_phrase": "EKS Pod Identity association", "limit": 2}),
     ("call_aws", {"cli_command": "aws ec2 describe-vpcs --region us-east-1"}),
     ("list_k8s_resources", {"cluster_name": "argus-platform-lab-eks", "kind": "Pod", "api_version": "v1", "namespace": "ecosystem"}),
     ("search_documentation", {"search_phrase": "EKS Pod Identity", "limit": 2}),
@@ -94,7 +95,7 @@ class Client:
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("profile", choices=["free", "real"])
+    ap.add_argument("profile", choices=["free", "real", "agent-toolkit"])
     ap.add_argument("--only")
     ap.add_argument("--timeout", type=float, default=240)
     a = ap.parse_args()

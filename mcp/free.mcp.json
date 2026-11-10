@@ -1,17 +1,20 @@
 {
+  "_doc": "Perfil free: servidores locais apontando para o floci (AWS emulada). Documentação AWS e skills vêm do plugin aws-core (Agent Toolkit for AWS), instalado no escopo de usuário.",
   "mcpServers": {
     "terraform": {
       "command": "docker",
-      "args": ["run", "-i", "--rm", "hashicorp/terraform-mcp-server:1.4.1"]
-    },
-    "aws-docs": {
-      "command": "uvx",
-      "args": ["awslabs.aws-documentation-mcp-server@1.2.3"],
-      "env": {"FASTMCP_LOG_LEVEL": "ERROR"}
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "hashicorp/terraform-mcp-server:1.4.1"
+      ]
     },
     "aws-api-floci": {
       "command": "uvx",
-      "args": ["awslabs.aws-api-mcp-server@1.6.0"],
+      "args": [
+        "awslabs.aws-api-mcp-server@1.6.0"
+      ],
       "env": {
         "AWS_ENDPOINT_URL": "http://localhost.floci.io:4566",
         "AWS_ACCESS_KEY_ID": "test",
@@ -22,7 +25,10 @@
     },
     "eks-floci": {
       "command": "uvx",
-      "args": ["awslabs.eks-mcp-server@0.2.1", "--allow-write"],
+      "args": [
+        "awslabs.eks-mcp-server@0.2.1",
+        "--allow-write"
+      ],
       "env": {
         "AWS_ENDPOINT_URL": "http://localhost.floci.io:4566",
         "AWS_ACCESS_KEY_ID": "test",

@@ -75,7 +75,7 @@ manifesto sha256 → serving), contratos de dados, agentes com MCP.
 ## 🏗️ Arquitetura
 
 ```text
-                      Claude Code ──MCP──► terraform · aws-docs · aws-api · eks   (mcp/free|real.mcp.json)
+                      Claude Code ──MCP──► terraform · AWS MCP Server · aws-api · eks   (mcp/*.mcp.json)
                            │
 AWS Project (Master) ──────┼── platform/lab.py ──► Terraform 00→05 ──► floci (free) | AWS (real)
   ├─ ecosystem/repos.json  │                         backend S3 · VPC · EKS+ECR · OIDC · WAF · AMP
