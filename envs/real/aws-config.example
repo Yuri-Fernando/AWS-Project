@@ -1,0 +1,22 @@
+# Modelo de ~/.aws/config para o perfil `real` (NÃO contém segredos; as chaves ficam em ~/.aws/credentials).
+# Substitua <ACCOUNT_ID> e <SEU_USUARIO>. A chave antiga do perfil [default] está inválida: remova-a.
+
+# 1) Seu usuário IAM pessoal (com MFA ativado no console). Chave em ~/.aws/credentials [argus-lab].
+[profile argus-lab]
+region = us-east-1
+
+# 2) Terraform / lab.py --target real: role de deploy com MFA (pede o código de 6 dígitos; sessão de até 4 h)
+[profile argus-lab-deployer]
+role_arn       = arn:aws:iam::<ACCOUNT_ID>:role/argus-platform-lab-deployer
+source_profile = argus-lab
+mfa_serial     = arn:aws:iam::<ACCOUNT_ID>:mfa/<SEU_USUARIO>
+duration_seconds = 14400
+region         = us-east-1
+
+# 3) MCP (mcp/real.mcp.json): somente leitura e SEM MFA, porque o servidor MCP não é interativo.
+#    Opção A (recomendada): um usuário IAM dedicado "argus-mcp-readonly" com ReadOnlyAccess + free-plan-guard,
+#    chave em ~/.aws/credentials [argus-lab-readonly]. Pior caso se a chave vazar: leitura, nada é criado.
+#    Opção B: rodar `aws sts assume-role` com MFA antes de abrir o Claude Code e exportar as credenciais
+#    temporárias (1 h) — mais seguro, porém manual a cada sessão.
+[profile argus-lab-readonly]
+region = us-east-1

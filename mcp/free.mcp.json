@@ -2,16 +2,16 @@
   "mcpServers": {
     "terraform": {
       "command": "docker",
-      "args": ["run", "-i", "--rm", "hashicorp/terraform-mcp-server"]
+      "args": ["run", "-i", "--rm", "hashicorp/terraform-mcp-server:1.4.1"]
     },
     "aws-docs": {
       "command": "uvx",
-      "args": ["awslabs.aws-documentation-mcp-server@latest"],
+      "args": ["awslabs.aws-documentation-mcp-server@1.2.3"],
       "env": {"FASTMCP_LOG_LEVEL": "ERROR"}
     },
     "aws-api-floci": {
       "command": "uvx",
-      "args": ["awslabs.aws-api-mcp-server@latest"],
+      "args": ["awslabs.aws-api-mcp-server@1.6.0"],
       "env": {
         "AWS_ENDPOINT_URL": "http://localhost.floci.io:4566",
         "AWS_ACCESS_KEY_ID": "test",
@@ -22,7 +22,7 @@
     },
     "eks-floci": {
       "command": "uvx",
-      "args": ["awslabs.eks-mcp-server@latest", "--allow-write"],
+      "args": ["awslabs.eks-mcp-server@0.2.1", "--allow-write"],
       "env": {
         "AWS_ENDPOINT_URL": "http://localhost.floci.io:4566",
         "AWS_ACCESS_KEY_ID": "test",

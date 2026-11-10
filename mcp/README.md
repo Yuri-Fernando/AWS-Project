@@ -11,7 +11,7 @@ Os mesmos servidores MCP usados no curso (Dia 1 01:45–03:00, Dia 2 01:00–02:
 
 **Estado:** CONFIGURADO como modelo, **não testado**. Pendências de validação: (1) o `aws-api-mcp-server` respeitar
 `AWS_ENDPOINT_URL`; (2) o `eks-mcp-server` gerar token aceito pelo webhook do floci (exige access key existente no IAM
-emulado — ver `docs/floci-compat-matrix.md`); (3) fixar versões em vez de `@latest` após validar.
+emulado — ver `docs/floci-compat-matrix.md`); (3) versões fixadas em 10/11/2026: aws-api 1.6.0, eks 0.2.1, aws-docs 1.2.3, terraform-mcp-server 1.4.1.
 
 ## Ativar (exige aprovação — regra AIOX: configuração de MCP é do `@devops`)
 ```bash
