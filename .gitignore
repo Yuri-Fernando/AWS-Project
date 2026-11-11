@@ -6,6 +6,7 @@ platform/.state/
 platform/.kube/
 envs/real/backend.hcl
 envs/real/*.auto.tfvars
+.claude/settings.local.json
 .mcp.json
 
 # Terraform
@@ -37,3 +38,6 @@ venv/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# instaladores baixados por engano na raiz
+*.msi

@@ -46,7 +46,7 @@ variable "enable_workload_identity" {
 data "aws_caller_identity" "current" {}
 
 data "terraform_remote_state" "eks" {
-  count   = var.enable_workload_identity ? 1 : 0
+  count   = var.enable_workload_identity && var.local_state_dir == null ? 1 : 0
   backend = "s3"
   config = merge(
     { bucket = local.state_bucket, key = "02-eks.tfstate", region = var.aws_region },
@@ -54,12 +54,19 @@ data "terraform_remote_state" "eks" {
   )
 }
 
+# AWS real: state local (regra do dono: nada salvo na AWS)
+data "terraform_remote_state" "eks_local" {
+  count   = var.enable_workload_identity && var.local_state_dir != null ? 1 : 0
+  backend = "local"
+  config  = { path = "${var.local_state_dir}/02-eks-aws.tfstate" }
+}
+
 locals {
   account    = data.aws_caller_identity.current.account_id
   principals = length(var.trusted_principal_arns) > 0 ? var.trusted_principal_arns : ["arn:aws:iam::${local.account}:root"]
   # MFA só é exigido na AWS real (o emulador não tem fluxo de MFA)
   mfa_condition = local.is_emulator ? {} : { Bool = { "aws:MultiFactorAuthPresent" = "true" } }
-  cluster       = try(data.terraform_remote_state.eks[0].outputs.cluster_name, null)
+  cluster       = try(data.terraform_remote_state.eks[0].outputs.cluster_name, data.terraform_remote_state.eks_local[0].outputs.cluster_name, null)
   ml_bucket     = "${var.project}-${var.environment}-ml-artifacts"
 }
 

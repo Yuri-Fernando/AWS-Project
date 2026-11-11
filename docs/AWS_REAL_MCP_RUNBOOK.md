@@ -24,9 +24,13 @@ Por isso: (1) a policy `free-plan-guard` nega os gatilhos; (2) tudo que importa 
 4. Ativar MCP somente leitura: `python tools/mcp_profile.py real` (aprovação `@devops`).
 
 ## 3. Sessões (cada uma: plan → apply → evidência → offload → destroy no mesmo dia)
+**Regra: nenhum dado persistido na AWS.** No alvo real o `lab.py` grava o state do Terraform localmente
+(`platform/.state/<stack>-aws.tfstate`, gitignored) através de um `backend_override.tf` gerado, e pula a stack
+`00-backend` (nada de bucket S3 de state). A R0 (roles e budgets) é só configuração, não dado: fica até o
+teardown final, que roda `lab.py down --target real --stacks 06-identity --yes-real-aws` antes de 05/05/2027.
 | # | Sessão | Comando | Custo estimado* |
 |---|---|---|---|
-| R0 | Identidade + budgets (bootstrap com credencial do usuário) | `TF_VAR_enable_workload_identity=false lab.py up --target real --stacks 00-backend,06-identity --yes-real-aws` (guardrails antes de qualquer recurso pago; roles de workload entram depois da R2) | ~US$ 0 |
+| R0 | Identidade + budgets (bootstrap com credencial do usuário) | `AWS_PROFILE=argus-lab TF_VAR_enable_workload_identity=false TF_VAR_budget_email=<e-mail> lab.py up --target real --stacks 06-identity --yes-real-aws` (10 recursos: free-plan-guard, deployer, mcp-readonly, 2 budgets; sem bucket; roles de workload entram depois da R2) | US$ 0 |
 | R1 | Rede (1 NAT ou nenhum) | `lab.py up --target real --stacks 01-networking --yes-real-aws` → evidências → `down` | < US$ 0,10/h |
 | R2 | EKS + ECR + OIDC + deploy dos apps | `--stacks 02-eks,03-ci-cd` → `images/build.py` (ECR real) → `lab.py deploy --target real` → `e2e.py --target real` | ~US$ 0,25–0,30/h |
 | R3 | Observabilidade | `05-monitoring` (AMP liga sozinho na AWS) + Prometheus remote_write; Grafana OSS no cluster | centavos |

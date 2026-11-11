@@ -27,6 +27,12 @@ variable "environment" {
   default     = "lab"
 }
 
+variable "local_state_dir" {
+  description = "AWS real: pasta do state LOCAL das stacks (nada salvo na AWS). null = remote state S3 (floci/curso)."
+  type        = string
+  default     = null
+}
+
 locals {
   is_emulator  = var.aws_endpoint != null
   name_prefix  = "${var.project}-${var.environment}"

@@ -31,11 +31,23 @@ variable "github_allowed_branches" {
 }
 
 data "terraform_remote_state" "eks" {
+  count   = var.local_state_dir == null ? 1 : 0
   backend = "s3"
   config = merge(
     { bucket = local.state_bucket, key = "02-eks.tfstate", region = var.aws_region },
     [for c in [local.emulator_backend] : c if local.is_emulator]...
   )
+}
+
+# AWS real: state local (regra do dono: nada salvo na AWS)
+data "terraform_remote_state" "eks_local" {
+  count   = var.local_state_dir == null ? 0 : 1
+  backend = "local"
+  config  = { path = "${var.local_state_dir}/02-eks-aws.tfstate" }
+}
+
+locals {
+  eks = var.local_state_dir == null ? data.terraform_remote_state.eks[0].outputs : data.terraform_remote_state.eks_local[0].outputs
 }
 
 module "iam" {
@@ -66,7 +78,7 @@ resource "aws_iam_role_policy" "ecr_push_eks_describe" {
         Effect = "Allow"
         Action = ["ecr:BatchCheckLayerAvailability", "ecr:InitiateLayerUpload", "ecr:UploadLayerPart",
         "ecr:CompleteLayerUpload", "ecr:PutImage", "ecr:BatchGetImage", "ecr:DescribeImages"]
-        Resource = data.terraform_remote_state.eks.outputs.ecr_repository_arns
+        Resource = local.eks.ecr_repository_arns
       },
       {
         Sid      = "EksDescribe"

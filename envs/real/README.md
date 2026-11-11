@@ -10,8 +10,9 @@
   credenciais com MFA, CI apenas via OIDC. Detalhes e custos estimados: `docs/plans/PLANO_v0.2_Curso_DevOps_x_Repos_AWS_Free.md`.
 
 ## Como ativar (quando autorizado)
-1. `cp envs/real/backend.hcl.example envs/real/backend.hcl` e ajuste o bucket criado por `00-backend` (`--target real`).
-   O `lab.py` usa `platform/terraform/_shared/backend-aws.hcl`: copie o mesmo conteúdo para lá (arquivo gitignored).
+1. State: **local**, nada salvo na AWS. No alvo real o `lab.py` gera `backend_override.tf` (gitignored), grava em
+   `platform/.state/<stack>-aws.tfstate` e pula `00-backend`. `backend.hcl.example` fica só como referência do
+   padrão S3 do curso.
 2. Credenciais do ambiente (perfil com MFA) — nunca chaves em arquivo versionado.
 3. `python platform/lab.py plan --target real` (não cria nada) → revisar custo → `up --target real --yes-real-aws`.
 4. Overlay de apps: `gitops/apps/*/overlays/aws` (2 réplicas, imagens no ECR real, sem credenciais — IRSA/Pod Identity).

@@ -2,8 +2,14 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: ecosystem
-resources: [../../base]
+resources: [../../base, serviceaccount.yaml]
 images:
   - name: riskcredit-train
     newName: ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/argus-platform/riskcredit-train
     newTag: lab
+patches:
+  - target: {kind: Job, name: riskcredit-train}
+    patch: |-
+      - op: add
+        path: /spec/template/spec/serviceAccountName
+        value: riskcredit-train

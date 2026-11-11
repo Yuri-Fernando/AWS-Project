@@ -42,20 +42,36 @@ def floci_env() -> dict:
             "AWS_SECRET_ACCESS_KEY": os.environ.get("AWS_SECRET_ACCESS_KEY", "test"), "AWS_DEFAULT_REGION": "us-east-1"}
 
 
-def login() -> None:
-    pw = subprocess.run(["aws", "ecr", "get-login-password"], env=floci_env(), capture_output=True, text=True, check=True).stdout
+def real_env() -> dict:
+    """AWS real: perfil do usuário IAM (sem endpoint/chaves fictícias)."""
+    env = {k: v for k, v in os.environ.items() if k.upper() not in ("AWS_ENDPOINT_URL", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY")}
+    env.setdefault("AWS_PROFILE", os.environ.get("LAB_REAL_PROFILE", "argus-lab"))
+    env["AWS_DEFAULT_REGION"] = "us-east-1"
+    return env
+
+
+def login(env: dict) -> None:
+    pw = subprocess.run(["aws", "ecr", "get-login-password"], env=env, capture_output=True, text=True, check=True).stdout
     # docker login recebe só o host do registry (no estilo path, REGISTRY = host/conta/região)
     sh(["docker", "login", "--username", "AWS", "--password-stdin", REGISTRY.split("/")[0]], input=pw, text=True, check=True)
 
 
 def main() -> None:
+    global REGISTRY
     ap = argparse.ArgumentParser()
     ap.add_argument("--only")
     ap.add_argument("--no-push", action="store_true")
+    ap.add_argument("--target", choices=["floci", "aws"], default="floci", help="aws = ECR real da conta do perfil")
     a = ap.parse_args()
+    env = floci_env()
+    if a.target == "aws":
+        env = real_env()
+        acct = subprocess.run(["aws", "sts", "get-caller-identity", "--query", "Account", "--output", "text"],
+                              env=env, capture_output=True, text=True, check=True).stdout.strip()
+        REGISTRY = f"{acct}.dkr.ecr.us-east-1.amazonaws.com"
     names = [n for n in IMAGES if not a.only or n in a.only.split(",")]
     if not a.no_push:
-        login()
+        login(env)
     results = {}
     for name in names:
         repo, sub, dockerfile = IMAGES[name]

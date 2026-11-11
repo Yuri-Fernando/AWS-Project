@@ -47,13 +47,63 @@ def secret(ns: str, name: str, key: str, env: dict) -> str:
     return base64.b64decode(out).decode() if out else ""
 
 
+def aws_inventory_html(kenv: dict) -> str:
+    """Painel com o estado REAL da conta (saída da AWS CLI/kubectl), ID da conta mascarado. Só leitura."""
+    import html
+    import re
+    aenv = {k: v for k, v in os.environ.items() if k.upper() not in ("AWS_ENDPOINT_URL", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY")}
+    aenv.setdefault("AWS_PROFILE", os.environ.get("LAB_REAL_PROFILE", "argus-lab"))
+    aenv.update(AWS_DEFAULT_REGION="us-east-1", AWS_PAGER="")
+
+    def run(cmd: list[str], env: dict) -> str:
+        r = subprocess.run(cmd, env=env, capture_output=True, text=True)
+        out = (r.stdout or r.stderr).strip()
+        out = re.sub(r"\b\d{12}\b", "<conta>", out)                      # ID da conta
+        out = re.sub(r"\bA(IDA|ROA|SIA|KIA)[A-Z0-9]{12,}\b", "<id-iam>", out)  # IDs únicos IAM / chaves
+        out = re.sub(r"\b(?!10\.)\d{1,3}(\.\d{1,3}){3}\b", "<ip-publico>", out)  # IPs públicos (privados 10.x ficam)
+        return re.sub(r"[\w.+-]+@[\w-]+\.[\w.]+", "<email>", out)        # e-mails
+
+    acct = subprocess.run(["aws", "sts", "get-caller-identity", "--query", "Account", "--output", "text"],
+                          env=aenv, capture_output=True, text=True).stdout.strip()  # só para a chamada; nunca exibido
+    sections = [
+        ("Identidade (STS)", ["aws", "sts", "get-caller-identity", "--output", "table"], aenv),
+        ("Plano da conta (Free Plan)", ["aws", "freetier", "get-account-plan-state", "--output", "table"], aenv),
+        ("EKS", ["aws", "eks", "describe-cluster", "--name", "argus-platform-lab-eks", "--query",
+                 "cluster.{nome:name,versao:version,status:status,plataforma:platformVersion}", "--output", "table"], aenv),
+        ("Nós do cluster", ["kubectl", "get", "nodes", "-o", "wide"], kenv),
+        ("Pods do ecossistema", ["kubectl", "get", "pods", "-n", "ecosystem", "-o", "wide"], kenv),
+        ("Imagens no ECR", ["aws", "ecr", "describe-repositories", "--query",
+                            "repositories[?starts_with(repositoryName,'argus-platform')].repositoryName", "--output", "table"], aenv),
+        ("Lambda (Credit Score)", ["aws", "lambda", "get-function-configuration", "--function-name", "credit-score-lab-predict",
+                                   "--query", "{nome:FunctionName,runtime:Runtime,memoria:MemorySize,estado:State}", "--output", "table"], aenv),
+        ("DynamoDB (log de inferência)", ["aws", "dynamodb", "describe-table", "--table-name", "credit-score-lab-inference-log",
+                                          "--query", "Table.{tabela:TableName,itens:ItemCount,status:TableStatus}", "--output", "table"], aenv),
+        ("Budgets (guardrail de custo)", ["aws", "budgets", "describe-budgets", "--account-id", acct,
+                                          "--query", "Budgets[].{nome:BudgetName,limite:BudgetLimit.Amount}", "--output", "table"], aenv),
+    ]
+    e2e = ROOT / ".state" / "e2e-aws.json"
+    body = "".join(f"<h2>{html.escape(t)}</h2><pre>{html.escape(run(c, e))}</pre>" for t, c, e in sections)
+    if e2e.exists():
+        rep = json.loads(e2e.read_text(encoding="utf-8"))
+        rows = "".join(f"<tr><td>{'✅' if c['ok'] else '❌'}</td><td>{html.escape(c['check'])}</td><td>{html.escape(c['detail'][:140])}</td></tr>"
+                       for c in rep["checks"])
+        body += f"<h2>Teste de ponta a ponta ({html.escape(rep['at'])})</h2><table>{rows}</table>"
+    return ("<html><head><meta charset='utf-8'><style>body{font-family:Segoe UI,Arial;margin:24px;background:#0f1117;color:#e6e6e6}"
+            "h1{color:#ff9900}h2{color:#7cc4ff;margin-top:22px}pre{background:#161b22;padding:10px;border-radius:6px;font-size:12px;"
+            "white-space:pre-wrap}table{border-collapse:collapse;font-size:13px}td{border:1px solid #333;padding:4px 8px}</style></head>"
+            "<body><h1>Argus Platform — AWS real (us-east-1)</h1>" + body + "</body></html>")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--target", default="floci")
     a = ap.parse_args()
     from playwright.sync_api import sync_playwright
 
+    global OUT
     env = {**os.environ, "KUBECONFIG": str(ROOT / ".kube" / f"{a.target}.yaml")}
+    if a.target == "aws":
+        OUT = OUT / "aws"  # não sobrescreve as evidências do floci
     OUT.mkdir(parents=True, exist_ok=True)
     shots: list[str] = []
     procs = []
@@ -84,6 +134,10 @@ def main() -> None:
                 page.screenshot(path=str(path), full_page=full)
                 shots.append(path.name)
                 print(f"  ✓ {path.name}", flush=True)
+
+            if a.target == "aws":
+                page.set_content(aws_inventory_html(env))
+                shot("aws-inventory", wait=1, full=True)
 
             # Grafana: login + dashboards
             page.goto(f"http://127.0.0.1:{gport}/login")

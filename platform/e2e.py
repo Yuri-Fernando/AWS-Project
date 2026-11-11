@@ -72,8 +72,13 @@ def main() -> None:
     ap.add_argument("--target", default="floci")
     a = ap.parse_args()
     kenv = {**os.environ, "KUBECONFIG": str(ROOT / ".kube" / f"{a.target}.yaml")}
-    aenv = {**os.environ, "AWS_ENDPOINT_URL": os.environ.get("FLOCI_ENDPOINT", "http://localhost.floci.io:4566"),
-            "AWS_ACCESS_KEY_ID": "test", "AWS_SECRET_ACCESS_KEY": "test", "AWS_DEFAULT_REGION": "us-east-1", "AWS_PAGER": ""}
+    if a.target == "aws":  # AWS real: perfil do usuário IAM, endpoints reais
+        aenv = {k: v for k, v in os.environ.items() if k.upper() not in ("AWS_ENDPOINT_URL", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY")}
+        aenv.update(AWS_DEFAULT_REGION="us-east-1", AWS_PAGER="")
+        aenv.setdefault("AWS_PROFILE", os.environ.get("LAB_REAL_PROFILE", "argus-lab"))
+    else:
+        aenv = {**os.environ, "AWS_ENDPOINT_URL": os.environ.get("FLOCI_ENDPOINT", "http://localhost.floci.io:4566"),
+                "AWS_ACCESS_KEY_ID": "test", "AWS_SECRET_ACCESS_KEY": "test", "AWS_DEFAULT_REGION": "us-east-1", "AWS_PAGER": ""}
     checks: list[dict] = []
 
     def record(name: str, ok: bool, detail: str) -> None:

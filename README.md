@@ -4,17 +4,19 @@
 
 [![platform-floci](https://github.com/Yuri-Fernando/AWS-Project/actions/workflows/platform-floci.yml/badge.svg)](.github/workflows/platform-floci.yml)
 ![e2e](https://img.shields.io/badge/e2e%20local-13%2F13-0a8a0a)
+![e2e-aws](https://img.shields.io/badge/e2e%20AWS%20real-13%2F13-ff9900)
 ![stacks](https://img.shields.io/badge/stacks%20Terraform-7%2F7%20no%20floci-0a8a0a)
-![apps](https://img.shields.io/badge/apps%20no%20EKS%20emulado-6%20%2B%201%20job-2a78d6)
-![versão](https://img.shields.io/badge/vers%C3%A3o-v0.2.0-4a5563) ![license](https://img.shields.io/badge/license-MIT-4a5563)
+![apps](https://img.shields.io/badge/apps%20no%20EKS-6%20%2B%201%20job-2a78d6)
+![versão](https://img.shields.io/badge/vers%C3%A3o-v0.3.0-4a5563) ![license](https://img.shields.io/badge/license-MIT-4a5563)
 
 ## Status
 
-🟡 **Em desenvolvimento — perfil `free` (AWS emulada) completo e testado localmente; perfil `real` preparado, nunca executado.**
-Verificado em 06/11/2026: 6 stacks Terraform aplicadas no emulador, 6 serviços + 1 job dos repositórios do ecossistema
-rodando no EKS emulado, Credit Score serverless (Lambda + DynamoDB) respondendo, `platform/e2e.py` **13/13** (inclui
-3 validações de contrato). Ainda não: execução do workflow no GitHub (depende de push), perfis MCP validados, qualquer
-recurso na AWS real.
+🟡 **Em desenvolvimento — perfil `free` (AWS emulada) completo; perfil `real` executado de ponta a ponta numa conta
+AWS Free Plan em 11/11/2026 e desmontado no mesmo dia.**
+Na AWS real (us-east-1): rede, EKS 1.33 com 2 nós, ECR, Pod Identity, ArgoCD, kube-prometheus-stack, 6 serviços + 1 job
+e o Credit Score serverless (API Gateway + Lambda + DynamoDB) — `platform/e2e.py --target aws` **13/13**. Nenhum dado
+ficou na AWS: state do Terraform local, dados copiados para fora (`tools/offload.py`) antes do `destroy`. Ainda não:
+workflow no GitHub executado, perfis MCP validados com MFA.
 
 | Área | Estado | Evidência |
 |---|---|---|
@@ -23,7 +25,7 @@ recurso na AWS real.
 | Comunicação com os repos | ✅ manifesto + contratos | `ecosystem/repos.json`, `tools/repos.py status`, `contracts/*.schema.json` |
 | Roles IAM + guardrails | ✅ no floci | stack `06-identity`, [`docs/IAM_ROLES.md`](docs/IAM_ROLES.md) |
 | Dados fora da AWS | ✅ local · R2 bloqueado por credencial | `tools/offload.py` (S3 + DynamoDB → `D:rgus-data`) |
-| Perfil `real` (AWS) | ⏳ preparado | `envs/real/` — exige aprovação e guardrails do plano v0.2 |
+| Perfil `real` (AWS) | ✅ executado e desmontado (11/11/2026) | e2e 13/13 · [`docs/evidence/aws/`](docs/evidence/aws/) · [sessão real](#-sessão-na-aws-real-free-plan) |
 | MCP | 🟡 configurado, não testado | `mcp/free.mcp.json`, `mcp/real.mcp.json` |
 | CI no GitHub | ⏳ escrito, não executado | `.github/workflows/platform-floci.yml` |
 
@@ -153,13 +155,44 @@ IAM/OIDC/IRSA, S3, Lambda, API Gateway v2, DynamoDB, Cognito, KMS, Step Function
 | Lambda Credit Score | HTTP 200, PD e faixa de risco, gravação no DynamoDB | `e2e.py` |
 | Memória do nó emulado | ~3,7 GB usados de 3,5 GB alocáveis (t3.medium emulada) | `kubectl top node` |
 
-Números são do laboratório local; não representam desempenho ou custo em AWS real.
+Números acima são do laboratório local. Na AWS real (11/11/2026):
+
+| Medida | Valor | Origem |
+|---|---|---|
+| Recursos criados | 06: 10 (+9 Pod Identity) · 01: 23 · 02: 30 · R4 serverless: 30 | saída do `terraform apply` |
+| Verificações ponta a ponta | **13/13** | `platform/e2e.py --target aws` |
+| Treino RiskCredit no EKS | 49,6 s, 8 artefatos com sha256 publicados no S3 via Pod Identity (sem chaves) | log do Job |
+| Lambda Credit Score | HTTP 200, modelo `v3-20260929`, PD 0,235, faixa D, registro no DynamoDB | `aws lambda invoke` / `e2e.py` |
+| Nós | 2 × `c7i-flex.large` SPOT (o Free Plan recusa `t3.medium`) | `kubectl get nodes` |
 
 ---
 
 ## 🖼️ Evidências
 
-Capturadas por `platform/evidence.py` (Playwright headless) em 07/11/2026, perfil `free`.
+### AWS real (11/11/2026, `platform/evidence.py --target aws`)
+
+ID da conta, IDs IAM e IPs públicos mascarados automaticamente.
+
+<p align="center">
+  <a href="docs/evidence/aws/aws-inventory.png"><img src="docs/evidence/aws/aws-inventory.png" width="640"></a><br>
+  <sub>Inventário lido da conta real: Free Plan ativo, EKS 1.33 ACTIVE, 2 nós, 13 pods, 7 repositórios ECR, Lambda, DynamoDB, budgets e o e2e 13/13</sub>
+</p>
+<p align="center">
+  <a href="docs/evidence/aws/grafana-k8s-namespace-ecosystem.png"><img src="docs/evidence/aws/grafana-k8s-namespace-ecosystem.png" width="420"></a>
+  <a href="docs/evidence/aws/grafana-node-exporter-full.png"><img src="docs/evidence/aws/grafana-node-exporter-full.png" width="420"></a><br>
+  <sub>Grafana OSS no EKS real: pods do namespace <code>ecosystem</code> e Node Exporter Full dos nós EC2</sub>
+</p>
+<p align="center">
+  <a href="docs/evidence/aws/creditscore-streamlit.png"><img src="docs/evidence/aws/creditscore-streamlit.png" width="420"></a>
+  <a href="docs/evidence/aws/argocd-applications.png"><img src="docs/evidence/aws/argocd-applications.png" width="420"></a><br>
+  <sub>Front Streamlit do Credit Score servido pelo EKS real · ArgoCD instalado no cluster</sub>
+</p>
+
+Outras: `docs/evidence/aws/{prometheus-targets,churn-api-swagger,grafana-k8s-cluster-compute}.png`.
+
+### AWS emulada (07/11/2026, perfil `free`)
+
+Capturadas por `platform/evidence.py` (Playwright headless).
 
 <p align="center">
   <a href="docs/evidence/grafana-node-exporter-full.png"><img src="docs/evidence/grafana-node-exporter-full.png" width="860"></a><br>
@@ -207,7 +240,7 @@ perfil free completo ─► CI verde no GitHub ─► MCP validado ─► sessã
 - **F4 — Serverless Credit Score** ✅ Concluída — Lambda + DynamoDB.
 - **F5 — Contratos e manifesto dos repos** 🟡 Parcial — 3 contratos; `customer_activity.v1` sem fluxo produtor→consumidor.
 - **F6 — CI no GitHub e MCP** ⏳ Planejada — depende de push e aprovação.
-- **F7 — Sessões na AWS real** ⏳ Planejada — `envs/real/`.
+- **F7 — Sessões na AWS real** ✅ Concluída — R0–R4 numa sessão (11/11/2026), e2e 13/13, tudo desmontado.
 
 ---
 
@@ -218,14 +251,44 @@ perfil free completo ─► CI verde no GitHub ─► MCP validado ─► sessã
 | v0.1.0 | 2026-11-06 | Master criado: plataforma (movida do Enterprise), perfis `free`/`real`, manifesto dos repos, contratos, MCP, e2e 13/13 |
 | v0.2.0 | 2026-11-07 | Stack `06-identity` (deployer com MFA, MCP somente leitura, `free-plan-guard`, budgets sem créditos, Pod Identity por app — 19 recursos no floci), `tools/offload.py` (dados fora da AWS), evidências visuais, runbook da AWS real |
 
+| v0.3.0 | 2026-11-11 | Execução na AWS real (Free Plan): state local no alvo real (nada salvo na AWS), overlays `aws` com ServiceAccount por app (Pod Identity), `build.py`/`deploy`/`e2e`/`evidence` com `--target aws`, nós free-tier-eligible, e2e 13/13, evidências mascaradas, offload e desmonte |
+
 Histórico de decisões: [`docs/plans/`](docs/plans/).
+
+---
+
+## ☁️ Sessão na AWS real (Free Plan)
+
+Uma sessão, R0 → R4, com evidências, offload e `destroy` no mesmo dia. Regras: nenhum dado persistido na AWS e nada
+que tire a conta do Free Plan (sem Organizations, Control Tower, Managed Grafana).
+
+| Sessão | O que subiu | Como |
+|---|---|---|
+| R0 | `free-plan-guard`, roles `deployer`/`mcp-readonly` (MFA), budgets US$ 0,01 e US$ 5 | `lab.py up --target real --stacks 06-identity` |
+| R1 | VPC 3 AZ, 6 subnets, sem NAT, flow logs 7 dias | `--stacks 01-networking` |
+| R2 | EKS 1.33, 2 × `c7i-flex.large` SPOT, 7 repositórios ECR, Pod Identity, deploy das apps | `--stacks 02-eks` · `images/build.py --target aws` · `lab.py deploy --target real` |
+| R3 | ArgoCD + kube-prometheus-stack (Grafana OSS) | Helm, valores em `platform/k8s/` |
+| R4 | Credit Score serverless (API Gateway JWT, Lambda, DynamoDB, Cognito, KMS) | Terraform do repo `meu-projeto-aws` |
+
+**State sem bucket S3.** No alvo real o `lab.py` gera um `backend_override.tf` (gitignored), grava o state em
+`platform/.state/<stack>-aws.tfstate` e passa `local_state_dir` para as stacks que leem saídas de outras (02, 03, 06).
+
+**O que só apareceu na conta real** (o emulador não valida):
+
+| Sintoma | Causa | Correção |
+|---|---|---|
+| Node group parado em `CREATING`, ASG com 0 instâncias | Free Plan só lança tipos `free-tier-eligible`; `t3.medium` é recusado | `c7i-flex.large` via `envs/real/real.auto.tfvars` |
+| `CreateLogGroup` → `AccessDeniedException` (KMS) | key policy sem permissão para o CloudWatch Logs | policy com `logs.<região>.amazonaws.com` (repo `meu-projeto-aws`) |
+| Lambda com concorrência reservada 20 | conta nova tem limite 10 e a AWS exige 10 não reservadas | variável `lambda_reserved_concurrency` (-1 no lab) |
+| `TF_VAR_*` ignorado no Windows | `os.environ` devolve chaves em maiúsculas | `lab.py` normaliza o nome da variável |
+| Budget com e-mail de exemplo | valor de placeholder colado no comando | e-mail lido de `envs/real/real.auto.tfvars` (gitignored) |
 
 ---
 
 ## 🔮 Próximos Passos
 
-**Concluído nesta versão:** perfil `free` completo, contratos validados, manifesto dos repos, Enterprise como biblioteca de módulos.
-**Dependem de decisão/terceiros:** criar o repo GitHub e enviar (push via `@devops`); ativar e validar MCP; autorizar sessões na AWS real.
+**Concluído nesta versão:** execução completa na AWS real (Free Plan), e2e 13/13, evidências e desmonte sem dados na conta.
+**Dependem de decisão/terceiros:** push do repositório (via `@devops`); validar os perfis MCP com MFA; remover a R0 (roles e budgets) ao encerrar a conta.
 **Próximos técnicos:** fluxo `customer_activity.v1` RetentIQ → fila → Argus; ArgoCD sincronizando do GitHub; OmniMind com LLM gratuito
 (Ollama) para o `/ask`; submodules do curso no hub `Projetos_Pessoais`.
 

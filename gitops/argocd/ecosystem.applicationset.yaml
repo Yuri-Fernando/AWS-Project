@@ -24,8 +24,8 @@ spec:
     spec:
       project: default
       source:
-        repoURL: https://github.com/Yuri-Fernando/Enterprise-Automation.git
-        targetRevision: feat/floci-local-platform
+        repoURL: https://github.com/Yuri-Fernando/AWS-Project.git
+        targetRevision: main
         path: "gitops/apps/{{.app}}/overlays/floci"
       destination:
         server: https://kubernetes.default.svc

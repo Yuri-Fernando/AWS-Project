@@ -2,10 +2,16 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: ecosystem
-resources: [../../base]
+resources: [../../base, serviceaccount.yaml]
 replicas:
   - {name: omnimind-api, count: 2}
 images:
   - name: omnimind-api
     newName: ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/argus-platform/omnimind-api
     newTag: lab
+patches:
+  - target: {kind: Deployment, name: omnimind-api}
+    patch: |-
+      - op: add
+        path: /spec/template/spec/serviceAccountName
+        value: omnimind-api

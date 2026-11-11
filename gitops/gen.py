@@ -106,14 +106,16 @@ resources: [deployment.yaml, service.yaml, pdb.yaml]
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: {NS}
-resources: [../../base]
+resources: [../../base{', serviceaccount.yaml' if target == 'aws' else ''}]
 replicas:
   - {{name: {name}, count: {replicas}}}
 images:
   - name: {name}
     newName: {SPEC['registry'][target]}/{name}
     newTag: lab
-""")
+""" + (sa_patch("Deployment", name) if target == "aws" else ""))
+        if target == "aws":
+            gen_sa(name)
 
 
 def gen_job(name: str, job: dict) -> None:
@@ -156,12 +158,35 @@ resources: [job.yaml]
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: {NS}
-resources: [../../base]
+resources: [../../base{', serviceaccount.yaml' if target == 'aws' else ''}]
 images:
   - name: {name}
     newName: {SPEC['registry'][target]}/{name}
     newTag: lab
+""" + (sa_patch("Job", name) if target == "aws" else ""))
+        if target == "aws":
+            gen_sa(name)
+
+
+def gen_sa(name: str) -> None:
+    """AWS real: ServiceAccount por app — a stack 06 associa a role (EKS Pod Identity) a <namespace>/<app>."""
+    w(ROOT / "apps" / name / "overlays" / "aws" / "serviceaccount.yaml", f"""
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {name}
+  labels: {{app.kubernetes.io/name: {name}, app.kubernetes.io/part-of: argus-ecosystem}}
 """)
+
+
+def sa_patch(kind: str, name: str) -> str:
+    return f"""patches:
+  - target: {{kind: {kind}, name: {name}}}
+    patch: |-
+      - op: add
+        path: /spec/template/spec/serviceAccountName
+        value: {name}
+"""
 
 
 def gen_env() -> None:
@@ -188,10 +213,29 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources: [namespace.yaml, platform-env.yaml]
 """)
-    # app-of-apps local (todas as apps de uma vez: kubectl apply -k gitops/overlays/floci)
+    # AWS real: sem endpoint nem chaves — credenciais vêm do EKS Pod Identity (stack 06)
+    aws_lines = "\n".join(f"  {k}: \"{v}\"" for k, v in SPEC["aws_env"].items())
+    w(ROOT / "env" / "aws" / "platform-env.yaml", f"""
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: platform-env
+  namespace: {NS}
+  labels: {{app.kubernetes.io/part-of: argus-ecosystem}}
+data:
+{aws_lines}
+""")
+    w(ROOT / "env" / "aws" / "namespace.yaml", (ROOT / "env" / "floci" / "namespace.yaml").read_text(encoding="utf-8").replace(HDR, ""))
+    w(ROOT / "env" / "aws" / "kustomization.yaml", """
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources: [namespace.yaml, platform-env.yaml]
+""")
+    # app-of-apps local (todas as apps de uma vez: kubectl apply -k gitops/overlays/<target>)
     apps = list(SPEC["apps"]) + list(SPEC["jobs"])
-    w(ROOT / "overlays" / "floci" / "kustomization.yaml", "apiVersion: kustomize.config.k8s.io/v1beta1\nkind: Kustomization\nresources:\n"
-      + "  - ../../env/floci\n" + "".join(f"  - ../../apps/{a}/overlays/floci\n" for a in apps))
+    for target in ("floci", "aws"):
+        w(ROOT / "overlays" / target / "kustomization.yaml", "apiVersion: kustomize.config.k8s.io/v1beta1\nkind: Kustomization\nresources:\n"
+          + f"  - ../../env/{target}\n" + "".join(f"  - ../../apps/{a}/overlays/{target}\n" for a in apps))
 
 
 def gen_argocd() -> None:

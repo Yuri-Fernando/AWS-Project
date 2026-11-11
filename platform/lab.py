@@ -52,14 +52,28 @@ def tf_env(stack: str, target: str) -> dict:
     data_dir.mkdir(parents=True, exist_ok=True)
     plugin.mkdir(parents=True, exist_ok=True)
     env.update(TF_DATA_DIR=str(data_dir), TF_PLUGIN_CACHE_DIR=str(plugin), TF_IN_AUTOMATION="1")
+    # No Windows, os.environ devolve as chaves em MAIÚSCULAS e o Terraform casa TF_VAR_<nome> com o nome exato
+    # da variável (minúsculo aqui). Sem isso, TF_VAR_enable_workload_identity=false era ignorado em silêncio.
+    for k in [k for k in env if k.upper().startswith("TF_VAR_")]:
+        env["TF_VAR_" + k[7:].lower()] = env.pop(k)
     if target == "floci":
         env.update(AWS_ACCESS_KEY_ID="test", AWS_SECRET_ACCESS_KEY="test", AWS_DEFAULT_REGION="us-east-1",
                    AWS_ENDPOINT_URL=FLOCI)
+    else:
+        env.setdefault("AWS_PROFILE", REAL_PROFILE)  # usuário IAM com MFA (envs/real/aws-config.example)
     return env
 
 
+REAL_PROFILE = os.environ.get("LAB_REAL_PROFILE", "argus-lab")
+# Valores locais do alvo real (ex.: budget_email, enable_workload_identity) — gitignored, nunca versionado.
+REAL_TFVARS = ROOT.parent / "envs" / "real" / "real.auto.tfvars"
+
+
 def tf_vars(target: str) -> list[str]:
-    return [f"-var=aws_endpoint={FLOCI}"] if target == "floci" else []
+    if target == "floci":
+        return [f"-var=aws_endpoint={FLOCI}"]
+    state_dir = (ROOT / ".state").as_posix()  # stacks leem saídas umas das outras do state local
+    return [f"-var=local_state_dir={state_dir}"] + ([f"-var-file={REAL_TFVARS}"] if REAL_TFVARS.exists() else [])
 
 
 def sync() -> None:
@@ -69,9 +83,23 @@ def sync() -> None:
     print(f"providers.tf sincronizado em {len(STACKS)} stacks")
 
 
+LOCAL_OVERRIDE = "backend_override.tf"  # gitignored; só existe durante execuções --target real
+
+
 def init(stack: str, target: str) -> None:
     d = TF / stack
     env = tf_env(stack, target)
+    override = d / LOCAL_OVERRIDE
+    if target == "aws" and stack != "00-backend":
+        # Regra do dono: NENHUM dado persistido na AWS (Free Plan; a conta fecha sem upgrade). O state das stacks
+        # reais fica local (platform/.state/, gitignored) via override file do Terraform, sem bucket S3.
+        state = ROOT / ".state" / f"{stack}-aws.tfstate"
+        state.parent.mkdir(exist_ok=True)
+        override.write_text('# GERADO por platform/lab.py (--target real): state local, nada salvo na AWS.\n'
+                            'terraform {\n  backend "local" {}\n}\n', encoding="utf-8")
+        sh(["terraform", f"-chdir={d}", "init", "-input=false", "-reconfigure", f"-backend-config=path={state}"], env)
+        return
+    override.unlink(missing_ok=True)
     if stack == "00-backend":
         state = ROOT / ".state" / f"00-backend-{target}.tfstate"
         state.parent.mkdir(exist_ok=True)
@@ -88,6 +116,9 @@ def run(action: str, stacks: list[str], target: str) -> None:
     sync()
     order = list(reversed(stacks)) if action == "destroy" else stacks
     for s in order:
+        if target == "aws" and s == "00-backend":
+            print("\n=== 00-backend pulada no alvo real: state é local (regra: nada salvo na AWS) ===", flush=True)
+            continue
         print(f"\n=== {action} {s} ({target}) ===", flush=True)
         init(s, target)
         args = {"apply": ["apply", "-input=false", "-auto-approve"],
@@ -109,7 +140,8 @@ def kubeconfig(target: str) -> Path:
     out = ROOT / ".kube" / f"{target}.yaml"
     out.parent.mkdir(exist_ok=True)
     env = tf_env("02-eks", target)
-    sh(["aws", "eks", "update-kubeconfig", "--name", name, "--kubeconfig", str(out), "--region", "us-east-1"], env)
+    extra = ["--profile", env["AWS_PROFILE"]] if target == "aws" else []  # grava o perfil no exec do kubeconfig
+    sh(["aws", "eks", "update-kubeconfig", "--name", name, "--kubeconfig", str(out), "--region", "us-east-1", *extra], env)
     if target == "floci":
         # O webhook de autenticação do EKS emulado só aceita tokens assinados por uma access key que EXISTA no IAM
         # do floci (a credencial genérica "test" é rejeitada — igual à AWS real, que exige identidade IAM válida).
@@ -142,7 +174,19 @@ def deploy(target: str) -> None:
     env = {**os.environ, "KUBECONFIG": str(kube)}
     sh([sys.executable, str(repo / "gitops" / "gen.py")])
     # 1) manifests (inclui namespace + ConfigMap padrão); 2) no floci, sobrescreve endpoint/segredo; 3) restart
-    sh(["kubectl", "apply", "-k", str(repo / "gitops" / "overlays" / target)], env)
+    if target == "aws":
+        # o ID da conta não vai para o git: o overlay usa ACCOUNT_ID e a troca acontece só aqui, em memória
+        acct = subprocess.run(["aws", "sts", "get-caller-identity", "--query", "Account", "--output", "text"],
+                              env=tf_env("02-eks", target), capture_output=True, text=True, check=True).stdout.strip()
+        rendered = subprocess.run(["kubectl", "kustomize", str(repo / "gitops" / "overlays" / target)],
+                                  capture_output=True, text=True, check=True).stdout.replace("ACCOUNT_ID", acct)
+        print("  $ kubectl kustomize gitops/overlays/aws | (ACCOUNT_ID -> conta) | kubectl apply -f -", flush=True)
+        subprocess.run(["kubectl", "apply", "-f", "-"], input=rendered, text=True, env=env, check=True)
+        if subprocess.run(["kubectl", "get", "secret", "retentiq-api-secrets", "-n", "ecosystem"], env=env, capture_output=True).returncode != 0:
+            sh(["kubectl", "create", "secret", "generic", "retentiq-api-secrets", "-n", "ecosystem",
+                f"--from-literal=JWT_SECRET={secrets.token_urlsafe(32)}"], env)
+    else:
+        sh(["kubectl", "apply", "-k", str(repo / "gitops" / "overlays" / target)], env)
     if target == "floci":
         # pods alcançam o floci pelo IP dele na rede docker floci_default (mesmo endpoint do mirror do k3s)
         ip = subprocess.run(["docker", "inspect", "-f", "{{(index .NetworkSettings.Networks \"floci_default\").IPAddress}}", "floci"],

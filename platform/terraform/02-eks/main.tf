@@ -52,6 +52,7 @@ variable "ecr_repositories" {
 }
 
 data "terraform_remote_state" "network" {
+  count   = var.local_state_dir == null ? 1 : 0
   backend = "s3"
   config = merge(
     { bucket = local.state_bucket, key = "01-networking.tfstate", region = var.aws_region },
@@ -59,13 +60,24 @@ data "terraform_remote_state" "network" {
   )
 }
 
+# AWS real: state local (regra do dono: nada salvo na AWS)
+data "terraform_remote_state" "network_local" {
+  count   = var.local_state_dir == null ? 0 : 1
+  backend = "local"
+  config  = { path = "${var.local_state_dir}/01-networking-aws.tfstate" }
+}
+
+locals {
+  network = var.local_state_dir == null ? data.terraform_remote_state.network[0].outputs : data.terraform_remote_state.network_local[0].outputs
+}
+
 module "eks" {
   source             = "../../../repos/enterprise-automation/terraform/modules/eks"
   name               = "${local.name_prefix}-eks"
   kubernetes_version = var.kubernetes_version
-  subnet_ids         = data.terraform_remote_state.network.outputs.private_subnet_ids
+  subnet_ids         = local.network.private_subnet_ids
   # sem NAT, nós precisam de subnet pública para baixar imagens (só relevante na AWS real)
-  node_subnet_ids = length(data.terraform_remote_state.network.outputs.nat_gateway_ids) > 0 ? null : data.terraform_remote_state.network.outputs.public_subnet_ids
+  node_subnet_ids = length(local.network.nat_gateway_ids) > 0 ? null : local.network.public_subnet_ids
   node_group      = var.node_group
   access_entries = {
     for i, arn in var.admin_principal_arns : "admin-${i}" => { principal_arn = arn, policy = "AmazonEKSClusterAdminPolicy" }

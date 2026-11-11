@@ -23,5 +23,6 @@
     "riskcredit-train": {"repo": "RiskCredit", "cpu": "250m", "memory": "512Mi", "limit": "1536Mi",
                          "env": {"ARTIFACT_BUCKET": "argus-platform-lab-ml-artifacts"}}
   },
+  "aws_env": {"AWS_DEFAULT_REGION": "us-east-1", "AWS_REGION": "us-east-1"},
   "floci_env": {"AWS_ENDPOINT_URL": "http://floci:4566", "AWS_ACCESS_KEY_ID": "test", "AWS_SECRET_ACCESS_KEY": "test", "AWS_DEFAULT_REGION": "us-east-1"}
 }

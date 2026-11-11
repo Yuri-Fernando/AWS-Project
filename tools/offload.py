@@ -35,6 +35,9 @@ def aws_env(target: str) -> dict:
     if target == "free":
         env.update(AWS_ENDPOINT_URL=os.environ.get("FLOCI_ENDPOINT", "http://localhost.floci.io:4566"),
                    AWS_ACCESS_KEY_ID="test", AWS_SECRET_ACCESS_KEY="test", AWS_DEFAULT_REGION="us-east-1")
+    else:
+        env.setdefault("AWS_PROFILE", os.environ.get("LAB_REAL_PROFILE", "argus-lab"))
+        env.setdefault("AWS_DEFAULT_REGION", "us-east-1")
     return env
 
 
@@ -63,7 +66,7 @@ def main() -> None:
     out.mkdir(parents=True, exist_ok=True)
     report = {"target": a.target, "dest": str(out), "buckets": {}, "tables": {}}
 
-    buckets = [b["Name"] for b in aws_json(["s3api", "list-buckets"], env).get("Buckets", []) if b["Name"].startswith(PREFIX)]
+    buckets = [b["Name"] for b in aws_json(["s3api", "list-buckets"], env).get("Buckets", []) if b["Name"].startswith((PREFIX, "credit-score-"))]
     for b in buckets:
         r = subprocess.run(["aws", "s3", "sync", f"s3://{b}", str(out / "s3" / b), "--only-show-errors"], env=env)
         n = sum(1 for p in (out / "s3" / b).rglob("*") if p.is_file()) if (out / "s3" / b).exists() else 0
