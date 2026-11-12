@@ -187,6 +187,27 @@ def main() -> None:
                 settle()
                 shot("argocd-applications", wait=5)
             browser.close()
+
+            if a.target == "aws":  # app servido pelo ALB público em HTTPS (DNS do laboratório mapeado no navegador)
+                lb = subprocess.run(["kubectl", "get", "ingress", "creditscore-app", "-n", "ecosystem", "-o",
+                                     "jsonpath={.status.loadBalancer.ingress[0].hostname}"], env=env,
+                                    capture_output=True, text=True).stdout.strip()
+                if lb:
+                    ip = socket.gethostbyname(lb)
+                    b2 = pw.chromium.launch(args=[f"--host-resolver-rules=MAP *.argus.lab {ip}"])
+                    c2 = b2.new_context(viewport={"width": 1600, "height": 1000}, ignore_https_errors=True)
+                    p2 = c2.new_page()
+                    p2.goto("https://creditscore.argus.lab/")
+                    try:
+                        p2.wait_for_load_state("networkidle", timeout=8000)
+                    except Exception:
+                        pass
+                    time.sleep(8)
+                    path = OUT / "alb-https-creditscore.png"
+                    p2.screenshot(path=str(path))
+                    shots.append(path.name)
+                    print(f"  ✓ {path.name} (https://creditscore.argus.lab via ALB)", flush=True)
+                    b2.close()
     finally:
         for p in procs:
             p.terminate()

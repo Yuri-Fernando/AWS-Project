@@ -1,0 +1,25 @@
+# 03-gitops-helm.txt — capturado em 2026-11-12 18:31 (sessão real, antes do destroy)
+
+## Applications do ArgoCD
+$ kubectl get applications -n argocd -o custom-columns=APP:.metadata.name,SYNC:.status.sync.status,HEALTH:.status.health.status,REVISAO:.status.sync.revision,CAMINHO:.spec.source.path
+APP                SYNC     HEALTH    REVISAO                                    CAMINHO
+argus-api          Synced   Healthy   c6d27da27e2e609d2ba4f335df371579622b85d8   gitops/apps/argus-api/overlays/aws
+churn-api          Synced   Healthy   c6d27da27e2e609d2ba4f335df371579622b85d8   gitops/apps/churn-api/overlays/aws
+creditscore-app    Synced   Healthy   c6d27da27e2e609d2ba4f335df371579622b85d8   gitops/apps/creditscore-app/overlays/aws
+omnimind-api       Synced   Healthy   c6d27da27e2e609d2ba4f335df371579622b85d8   gitops/apps/omnimind-api/overlays/aws
+platform-env-aws   Synced   Healthy   c6d27da27e2e609d2ba4f335df371579622b85d8   gitops/env/aws
+retentiq-api       Synced   Healthy   c6d27da27e2e609d2ba4f335df371579622b85d8   gitops/apps/retentiq-api/overlays/aws
+riskcredit-train   Synced   Healthy   c6d27da27e2e609d2ba4f335df371579622b85d8   gitops/apps/riskcredit-train/overlays/aws
+themis-api         Synced   Healthy   c6d27da27e2e609d2ba4f335df371579622b85d8   gitops/apps/themis-api/overlays/aws
+
+## ApplicationSet
+$ kubectl get applicationset -n argocd -o wide
+NAME            AGE
+ecosystem-aws   14m
+
+## releases Helm
+$ helm list -A
+NAME                        	NAMESPACE  	REVISION	UPDATED                              	STATUS  	CHART                             	APP VERSION
+argocd                      	argocd     	1       	2026-11-12 18:11:58.1464259 -0300 -03	deployed	argo-cd-10.13.1                   	v3.6.1     
+aws-load-balancer-controller	kube-system	1       	2026-11-12 18:15:34.6009536 -0300 -03	deployed	aws-load-balancer-controller-3.6.2	v3.6.2     
+monitoring                  	monitoring 	1       	2026-11-12 18:13:15.9070625 -0300 -03	deployed	kube-prometheus-stack-92.21.1     	v0.94.2

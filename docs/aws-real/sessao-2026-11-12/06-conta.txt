@@ -1,0 +1,23 @@
+# 06-conta.txt — capturado em 2026-11-12 18:33 (sessão real, antes do destroy)
+
+## plano
+$ aws freetier get-account-plan-state --query {plano:accountPlanType,status:accountPlanStatus,creditos:accountPlanRemainingCredits.amount,expira:accountPlanExpirationDate} --output table
+---------------------------------------------------------------------
+|                        GetAccountPlanState                        |
++----------+------------------------------------+--------+----------+
+| creditos |              expira                | plano  | status   |
++----------+------------------------------------+--------+----------+
+|  159.14  |  2027-05-05T18:53:21.844000+00:00  |  FREE  |  ACTIVE  |
++----------+------------------------------------+--------+----------+
+
+## budgets
+$ aws budgets describe-budgets --account-id <conta> --query Budgets[].{nome:BudgetName,limite:BudgetLimit.Amount,gastoAtual:CalculatedSpend.ActualSpend.Amount} --output table
+-------------------------------------------------------------
+|                      DescribeBudgets                      |
++------------+---------+------------------------------------+
+| gastoAtual | limite  |               nome                 |
++------------+---------+------------------------------------+
+|  0.859     |  5.0    |  argus-platform-lab-monthly        |
+|  0.859     |  0.01   |  argus-platform-lab-zero-spend     |
+|  0.0       |  10.0   |  credit-score-lab-monthly-budget   |
++------------+---------+------------------------------------+

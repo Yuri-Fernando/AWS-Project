@@ -1,0 +1,39 @@
+# 05-serverless.txt — capturado em 2026-11-12 18:32 (sessão real, antes do destroy)
+
+## Lambda
+$ aws lambda get-function-configuration --function-name credit-score-lab-predict --query {nome:FunctionName,runtime:Runtime,memoria:MemorySize,timeout:Timeout,tracing:TracingConfig.Mode,tamanhoZip:CodeSize,estado:State} --output table
+--------------------------------------------
+|         GetFunctionConfiguration         |
++-------------+----------------------------+
+|  estado     |  Active                    |
+|  memoria    |  1024                      |
+|  nome       |  credit-score-lab-predict  |
+|  runtime    |  python3.11                |
+|  tamanhoZip |  51349903                  |
+|  timeout    |  10                        |
+|  tracing    |  Active                    |
++-------------+----------------------------+
+
+## DynamoDB
+$ aws dynamodb describe-table --table-name credit-score-lab-inference-log --query Table.{tabela:TableName,status:TableStatus,cobranca:BillingModeSummary.BillingMode,chave:KeySchema} --output json
+{
+    "tabela": "credit-score-lab-inference-log",
+    "status": "ACTIVE",
+    "cobranca": "PAY_PER_REQUEST",
+    "chave": [
+        {
+            "AttributeName": "request_id",
+            "KeyType": "HASH"
+        }
+    ]
+}
+
+## API Gateway
+$ aws apigatewayv2 get-apis --query Items[].{nome:Name,protocolo:ProtocolType,endpoint:ApiEndpoint} --output table
+-------------------------------------------------------------------------
+|                                GetApis                                |
++-----------+-----------------------------------------------------------+
+|  endpoint |  https://zo4vqd06xc.execute-api.us-east-1.amazonaws.com   |
+|  nome     |  credit-score-lab-api                                     |
+|  protocolo|  HTTP                                                     |
++-----------+-----------------------------------------------------------+

@@ -1,4 +1,17 @@
-# Sessão na AWS real — 11/11/2026 (conta Free Plan, us-east-1)
+# Sessões na AWS real (conta Free Plan, us-east-1)
+
+| Sessão | Data | O que provou | e2e |
+|---|---|---|---|
+| 1 | 11/11/2026 | plataforma completa na nuvem: rede, EKS, apps, observabilidade, serverless | 13/13 |
+| 2 | 12/11/2026 | **GitOps de verdade** (ArgoCD puxando do GitHub) e **ALB público com HTTPS** (TLS 1.3) | **18/18** |
+
+Para saber o que existiu na nuvem sem acesso à conta: [`aws-real/INVENTARIO.md`](aws-real/INVENTARIO.md) (cada recurso,
+lido dos states de antes do destroy) e [`aws-real/sessao-2026-11-12/`](aws-real/sessao-2026-11-12/) (retrato
+operacional ao vivo: EKS, pods, Ingress, ALB com listeners e alvos, certificado, ArgoCD, Helm, serverless, conta).
+
+---
+
+# Sessão 1 — 11/11/2026
 
 Registro completo da primeira execução do perfil `real`: o mesmo código Terraform/GitOps que roda no emulador (floci)
 aplicado numa conta AWS de verdade, testado de ponta a ponta, documentado com evidências e desmontado no mesmo dia.
@@ -105,3 +118,78 @@ python platform/e2e.py --target aws && python platform/evidence.py --target aws
 python tools/offload.py --target real
 python platform/lab.py down --target real --stacks 01-networking,02-eks --yes-real-aws
 ```
+
+---
+
+# Sessão 2 — 12/11/2026: ArgoCD puxando do GitHub e ALB com HTTPS
+
+Objetivo: fechar as duas lacunas da sessão 1 — o deploy era feito por script (não era GitOps de verdade) e não havia
+entrada pública (só `port-forward`).
+
+## O que mudou no código (antes de subir)
+
+| Peça | Mudança | Por quê |
+|---|---|---|
+| `01-networking` | `aws_ec2_tag`: `kubernetes.io/role/elb=1` nas subnets públicas e `internal-elb=1` nas privadas | o AWS Load Balancer Controller descobre onde criar o ALB por essas tags; o módulo do submódulo não foi alterado |
+| `02-eks` | provider `tls`: chave RSA 2048 + certificado **autoassinado** `*.argus.lab` (7 dias) importado no ACM; output `vpc_id` | sem domínio próprio não há certificado público válido; a chave vive só no state local (gitignored) |
+| `06-identity` | role do controller com a **policy oficial v3.6.2** (`policies/aws-load-balancer-controller-v3.6.2.json`) via EKS Pod Identity | sem chave estática; versão da policy casada com a versão do chart |
+| `gitops` | Ingress no overlay `aws` para `creditscore-app` e `churn-api`: ALB compartilhado (`group.name: argus`), HTTP 80 → 301 → HTTPS 443, política `ELBSecurityPolicy-TLS13-1-2-2021-06`, `target-type: ip`, health check por app | um único ALB (custo) com roteamento por host; o certificado é achado pelo host do `tls` (nenhum ARN no git) |
+| `lab.py addons` | instala com Helm, em versões fixas, ArgoCD 10.13.1, kube-prometheus-stack 92.21.1 e AWS Load Balancer Controller 3.6.2 (`clusterName`, `vpcId`, SA com Pod Identity) | antes eram comandos manuais do README |
+| `lab.py argocd` | cria o Application `platform-env-aws` e o ApplicationSet `ecosystem-aws` (7 apps) apontando para `github.com/Yuri-Fernando/AWS-Project`, `main`, `gitops/apps/<app>/overlays/aws`, sync automático com prune e self-heal; o ID da conta entra **só em memória** como `kustomize.images` | o cluster passa a **puxar** do repositório; o git continua com `ACCOUNT_ID` |
+| `lab.py down` | antes de destruir o EKS: apaga Applications e Ingress e espera o controller remover o ALB (até 10 min, senão aborta) | o ALB é criado fora do Terraform; se o cluster morrer antes, o ALB fica órfão cobrando e a VPC não apaga |
+| `e2e.py` | +5 verificações na AWS: ArgoCD Synced/Healthy, HTTPS 200 via ALB nos 2 hosts, redirect 301 nos 2 hosts | provar entrada pública e GitOps, não só o cluster |
+| `evidence.py` | captura do app servido pelo ALB em HTTPS (`--host-resolver-rules` mapeia `*.argus.lab` para o IP do ALB) | evidência visual da entrada pública |
+| `tools/real_snapshot.py` | grava o estado vivo da sessão em `docs/aws-real/sessao-AAAA-MM-DD/` | consulta futura sem acesso à nuvem |
+
+## Execução (comandos na ordem real)
+
+```bash
+python platform/lab.py up --target real --stacks 01-networking --yes-real-aws   # 29 recursos (23 + 6 tags)
+python platform/lab.py up --target real --stacks 02-eks --yes-real-aws          # 30 recursos (27 + chave, cert, ACM)
+terraform -chdir=../meu-projeto-aws/infra/terraform apply ...                   # R4: 30 recursos
+# enable_workload_identity = true
+python platform/lab.py up --target real --stacks 06-identity --yes-real-aws     # +13 (9 apps + 4 do controller)
+python platform/lab.py kubeconfig --target real
+python platform/lab.py addons --target real                                     # 3 releases Helm "deployed"
+python platform/images/build.py --target aws                                    # 7 imagens no ECR
+python platform/lab.py argocd --target real                                     # 8 Applications
+python platform/e2e.py --target aws                                             # 18/18
+python platform/evidence.py --target aws                                        # 9 capturas
+python tools/real_snapshot.py                                                   # retrato operacional
+python tools/offload.py --target real                                           # 10 arquivos S3 + 1 item DynamoDB
+python platform/lab.py down --target real --stacks 01-networking,02-eks --yes-real-aws
+```
+
+## Resultados
+
+| Verificação | Resultado |
+|---|---|
+| ArgoCD | 8/8 Applications **Synced + Healthy**, fonte `github.com/Yuri-Fernando/AWS-Project` @ `main` |
+| ALB | 1 ALB compartilhado `k8s-argus-*`, internet-facing, 3 AZs; listeners HTTP 80 (redirect) e HTTPS 443 com 1 certificado |
+| HTTPS | `churn.argus.lab/health` e `creditscore.argus.lab/_stcore/health` → **HTTP 200 via TLS 1.3** |
+| Redirect | HTTP → **301** → `https://<host>:443/...` nos dois hosts |
+| Alvos | 4 alvos **healthy** (2 pods por app, IPs de pod — `target-type: ip`) |
+| Certificado | `*.argus.lab`, tipo `IMPORTED`, status `ISSUED`, em uso pelo listener |
+| e2e completo | **18/18** (13 da sessão 1 + 5 novos) |
+
+## Achados desta sessão
+
+| Sintoma | Causa real | Correção |
+|---|---|---|
+| `helm` → "invalid leading UTF-8 octet" ao ler os values | no Windows o `subprocess` do Python envia stdin em cp1252; os comentários em português viram bytes inválidos | `encoding="utf-8"` explícito nas chamadas com stdin (`addons`, `deploy`, `argocd`) |
+| Valor do Secret de laboratório apareceu no log do terminal | a função que imprime comandos mostrava `--from-literal=CHAVE=valor` | `shown()` mascara `--from-literal` e `password=` em toda saída do `lab.py` |
+| VPC presa ~8 min no `destroy` da rede | o controller cria o security group `k8s-traffic-<cluster>` (ALB → pods) e morreu com o cluster antes de apagá-lo | removido o SG; o `lab.py` agora apaga, depois que o ALB some, os SGs com a tag `elbv2.k8s.aws/cluster` |
+| **Ingress travado e ALB não apagava** no desmonte | desliguei o Pod Identity (stack 06) **antes** de apagar o Ingress: o controller perdeu a credencial AWS e não conseguia remover o ALB; a trava do `lab.py` recusou destruir o EKS (evitou ALB órfão) | religado o Pod Identity → controller apagou o ALB em 30 s; o `lab.py` agora **libera o ALB automaticamente** antes de desligar o Pod Identity ou destruir a stack 06 |
+
+## Desmonte
+
+Offload (10 arquivos S3 + 1 item DynamoDB) → Pod Identity desligado (com a liberação automática do ALB) → `down` do
+EKS (30 destruídos) e da rede (29 destruídos) → `destroy` da R4 (30 destruídos) → bucket do job removido.
+
+**Verificação final (12/11/2026), todas as 17 regiões:** 0 instâncias EC2, volumes EBS, IPs elásticos, NAT, VPCs não
+padrão, clusters EKS, RDS, Lambdas, load balancers, tabelas DynamoDB, certificados ACM e repositórios ECR; 0 buckets
+S3. Permanece só a R0 (roles, policy e budgets — sem custo).
+
+**Custo:** estimado em ~US$ 0,40 (EKS ~US$ 0,10/h + ALB ~US$ 0,02/h + nós SPOT e IPs por ~2,5 h), coberto pelos
+créditos. O Cost Explorer lança o valor com atraso de algumas horas; no fechamento desta sessão os créditos ainda
+marcavam US$ 159,14 (antes do lançamento).

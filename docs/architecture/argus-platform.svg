@@ -1,0 +1,190 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1010" viewBox="0 0 1600 1010" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#5b6472"/>
+    </marker>
+    <marker id="ao" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#e07b00"/>
+    </marker>
+    <style>
+      .t{font-size:15px;fill:#1f2937;font-weight:600}
+      .s{font-size:12.5px;fill:#374151}
+      .x{font-size:11.5px;fill:#6b7280}
+      .h{font-size:13px;font-weight:700;letter-spacing:.4px}
+      .box{fill:#fff;stroke:#c9ced6;stroke-width:1.3;rx:8}
+      .ln{stroke:#5b6472;stroke-width:1.6;fill:none;marker-end:url(#a)}
+      .lo{stroke:#e07b00;stroke-width:2;fill:none;marker-end:url(#ao)}
+      .lb{font-size:11.5px;fill:#4b5563;font-style:italic}
+    </style>
+  </defs>
+
+  <rect width="1600" height="1010" fill="#f7f8fa"/>
+  <text x="30" y="40" font-size="24" font-weight="700" fill="#111827">Argus Platform — a mesma IaC no emulador (R$ 0) e numa conta AWS real</text>
+  <text x="30" y="64" class="s">Sessão real: e2e na AWS, US$ 0,86 cobertos por créditos, nada persistido na nuvem (state local + offload), desmonte verificado em 17 regiões</text>
+
+  <!-- ===================== FORA DA AWS ===================== -->
+  <rect x="20" y="90" width="330" height="900" rx="12" fill="#eef2f7" stroke="#b9c3d0"/>
+  <text x="40" y="118" class="h" fill="#334155">FORA DA AWS</text>
+
+  <rect x="40" y="135" width="290" height="110" class="box"/>
+  <text x="56" y="160" class="t">Você / Claude Code</text>
+  <text x="56" y="182" class="s">platform/lab.py (orquestrador)</text>
+  <text x="56" y="200" class="s">Terraform · kubectl · Helm · AWS CLI</text>
+  <text x="56" y="218" class="s">MCP: AWS MCP Server · EKS · Terraform</text>
+  <text x="56" y="236" class="x">tools/mcp_session.py → MFA → sessão 1 h</text>
+
+  <rect x="40" y="265" width="290" height="140" class="box"/>
+  <text x="56" y="290" class="t">GitHub — AWS-Project</text>
+  <text x="56" y="312" class="s">gitops/apps/*/overlays/{floci,aws}</text>
+  <text x="56" y="330" class="s">Actions: CI contra o floci</text>
+  <text x="56" y="348" class="x">fmt · GitOps gerado · up 7 stacks ·</text>
+  <text x="56" y="364" class="x">kubectl no EKS emulado · down</text>
+  <text x="56" y="388" class="s">submódulo: módulos Terraform (enterprise)</text>
+
+  <rect x="40" y="425" width="290" height="125" class="box"/>
+  <text x="56" y="450" class="t">Emulador floci 2.4.0 (perfil free)</text>
+  <text x="56" y="472" class="s">mesmo Terraform via var.aws_endpoint</text>
+  <text x="56" y="490" class="s">EKS = k3s real · ECR · Lambda · S3</text>
+  <text x="56" y="508" class="s">e2e 13/13 local · custo R$ 0</text>
+  <text x="56" y="532" class="x">docker compose · platform/floci/</text>
+
+  <rect x="40" y="570" width="290" height="125" class="box"/>
+  <text x="56" y="595" class="t">Disco local (nada fica na AWS)</text>
+  <text x="56" y="617" class="s">state do Terraform: platform/.state/</text>
+  <text x="56" y="635" class="s">offload S3 + DynamoDB → D:\argus-data</text>
+  <text x="56" y="653" class="s">inventário: tools/real_inventory.py</text>
+  <text x="56" y="677" class="x">gitignored: state, kubeconfig, tfvars</text>
+
+  <rect x="40" y="715" width="290" height="140" class="box"/>
+  <text x="56" y="740" class="t">Repositórios dos apps</text>
+  <text x="56" y="762" class="s">ecosystem/repos.json (commit fixado)</text>
+  <text x="56" y="780" class="s">Argus · RetentIQ · Themis · OmniMind</text>
+  <text x="56" y="798" class="s">Churn · RiskCredit · Credit Score</text>
+  <text x="56" y="822" class="x">platform/images/build.py → 7 imagens</text>
+  <text x="56" y="840" class="x">contratos: contracts/*.schema.json</text>
+
+  <rect x="40" y="875" width="290" height="95" class="box"/>
+  <text x="56" y="900" class="t">Usuário (navegador / curl)</text>
+  <text x="56" y="922" class="s">https://creditscore.argus.lab</text>
+  <text x="56" y="940" class="s">https://churn.argus.lab</text>
+  <text x="56" y="958" class="x">cert. autoassinado (sem domínio próprio)</text>
+
+  <!-- ===================== CONTA AWS ===================== -->
+  <rect x="390" y="90" width="1190" height="900" rx="12" fill="#fff8ef" stroke="#e7a24a" stroke-width="1.6"/>
+  <text x="410" y="118" class="h" fill="#b45309">CONTA AWS — FREE PLAN · us-east-1</text>
+
+  <!-- guardrails -->
+  <rect x="410" y="132" width="1150" height="70" rx="8" fill="#fff" stroke="#e9b97a"/>
+  <text x="426" y="156" class="t">Guardrails (R0 · stack 06-identity)</text>
+  <text x="426" y="178" class="s">IAM free-plan-guard (nega Organizations, Control Tower, criações caras via agente) · roles deployer e mcp-readonly (MFA)</text>
+  <text x="426" y="195" class="s">Budgets US$ 0,01 (zero-spend) e US$ 5/mês com créditos excluídos · Cost Anomaly Detection</text>
+
+  <!-- VPC -->
+  <rect x="410" y="220" width="800" height="620" rx="10" fill="#f3f8ff" stroke="#7aa7e0" stroke-dasharray="6 4"/>
+  <text x="426" y="244" class="h" fill="#1d4ed8">VPC 10.20.0.0/16 · 3 AZs · subnets públicas e privadas · sem NAT (R1)</text>
+
+  <!-- ALB -->
+  <rect x="430" y="262" width="760" height="78" class="box" stroke="#8b5cf6"/>
+  <text x="446" y="287" class="t">Application Load Balancer (AWS Load Balancer Controller v3.6.2)</text>
+  <text x="446" y="308" class="s">HTTPS 443 · TLS 1.3 · certificado *.argus.lab no ACM · HTTP 80 → redirect 443 · roteamento por host</text>
+  <text x="446" y="326" class="x">criado pelo Ingress (group argus); removido pelo lab.py antes do destroy do EKS</text>
+
+  <!-- EKS -->
+  <rect x="430" y="360" width="760" height="460" rx="10" fill="#fff" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="446" y="386" class="t">Amazon EKS 1.33 (R2) · 2× c7i-flex.large SPOT</text>
+
+  <rect x="450" y="402" width="400" height="300" rx="8" fill="#f0fdf4" stroke="#86c99a"/>
+  <text x="466" y="426" class="t">namespace ecosystem (2 réplicas cada)</text>
+  <text x="466" y="450" class="s">argus-api · retentiq-api · themis-api</text>
+  <text x="466" y="470" class="s">omnimind-api · churn-api · creditscore-app</text>
+  <text x="466" y="494" class="s">Job riskcredit-train (treino 49,6 s)</text>
+  <text x="466" y="520" class="x">probes · PDB · não-root · seccomp · requests/limits</text>
+  <text x="466" y="538" class="x">ServiceAccount por app → EKS Pod Identity</text>
+  <text x="466" y="566" class="s">Ingress: creditscore.argus.lab, churn.argus.lab</text>
+  <text x="466" y="592" class="s">Secret de lab gerado no cluster (fora do git)</text>
+  <text x="466" y="618" class="x">gerado por gitops/gen.py a partir de apps.json</text>
+
+  <rect x="870" y="402" width="300" height="92" rx="8" fill="#fef3c7" stroke="#e7b84a"/>
+  <text x="886" y="426" class="t">argocd</text>
+  <text x="886" y="448" class="s">ApplicationSet: puxa do GitHub</text>
+  <text x="886" y="466" class="s">sync automático · prune · self-heal</text>
+  <text x="886" y="484" class="x">ID da conta só em memória (override)</text>
+
+  <rect x="870" y="508" width="300" height="92" rx="8" fill="#ede9fe" stroke="#a78bfa"/>
+  <text x="886" y="532" class="t">monitoring</text>
+  <text x="886" y="554" class="s">Prometheus + Grafana OSS</text>
+  <text x="886" y="572" class="s">Node Exporter Full · pods do ecosystem</text>
+  <text x="886" y="590" class="x">kube-prometheus-stack 92.21.1</text>
+
+  <rect x="870" y="614" width="300" height="88" rx="8" fill="#f1f5f9" stroke="#94a3b8"/>
+  <text x="886" y="638" class="t">kube-system</text>
+  <text x="886" y="660" class="s">aws-load-balancer-controller</text>
+  <text x="886" y="678" class="x">role IAM oficial via Pod Identity</text>
+
+  <text x="450" y="742" class="s">Helm fixado: lab.py addons · deploy GitOps: lab.py argocd · validação: platform/e2e.py --target aws</text>
+  <text x="450" y="764" class="x">evidências mascaradas: platform/evidence.py → docs/evidence/aws/</text>
+  <text x="450" y="786" class="x">ALB → pods direto (target-type ip) · add-ons EKS: VPC CNI, CoreDNS, kube-proxy, Pod Identity Agent</text>
+
+  <!-- serviços regionais -->
+  <rect x="1230" y="220" width="330" height="96" class="box"/>
+  <text x="1246" y="245" class="t">Amazon ECR (R2)</text>
+  <text x="1246" y="267" class="s">7 repositórios argus-platform/*</text>
+  <text x="1246" y="285" class="x">scan on push · lifecycle 10 imagens</text>
+  <text x="1246" y="303" class="x">tags: sha do app + lab</text>
+
+  <rect x="1230" y="332" width="330" height="96" class="box"/>
+  <text x="1246" y="357" class="t">Amazon S3 — ml-artifacts</text>
+  <text x="1246" y="379" class="s">modelo champion + manifesto sha256</text>
+  <text x="1246" y="397" class="x">contrato model_manifest.v1</text>
+  <text x="1246" y="415" class="x">acesso pelo Job via Pod Identity</text>
+
+  <rect x="1230" y="444" width="330" height="270" rx="10" fill="#fff" stroke="#f59e0b"/>
+  <text x="1246" y="469" class="t">Credit Score serverless (R4)</text>
+  <rect x="1250" y="484" width="290" height="42" rx="6" fill="#fef9c3" stroke="#e5c55c"/>
+  <text x="1262" y="510" class="s">API Gateway HTTP + JWT (Cognito)</text>
+  <rect x="1250" y="540" width="290" height="42" rx="6" fill="#fef9c3" stroke="#e5c55c"/>
+  <text x="1262" y="566" class="s">Lambda v3 · Python 3.11 · 1024 MB</text>
+  <rect x="1250" y="596" width="290" height="42" rx="6" fill="#fef9c3" stroke="#e5c55c"/>
+  <text x="1262" y="622" class="s">DynamoDB inference-log (PITR, KMS)</text>
+  <text x="1250" y="660" class="x">KMS com key policy p/ CloudWatch Logs</text>
+  <text x="1250" y="678" class="x">alarmes · dashboard · X-Ray</text>
+  <text x="1250" y="698" class="x">repo Credit-Score-Predictor (v3.3.0)</text>
+
+  <rect x="1230" y="730" width="330" height="110" class="box"/>
+  <text x="1246" y="755" class="t">Observabilidade e auditoria</text>
+  <text x="1246" y="777" class="s">CloudWatch Logs (flow logs 7 dias)</text>
+  <text x="1246" y="795" class="s">Cost Explorer · Free Plan state</text>
+  <text x="1246" y="813" class="x">inventário pós-desmonte: 0 recursos</text>
+  <text x="1246" y="831" class="x">nas 17 regiões</text>
+
+  <rect x="410" y="860" width="1150" height="110" rx="8" fill="#fff" stroke="#e9b97a"/>
+  <text x="426" y="885" class="t">Ciclo de cada sessão</text>
+  <text x="426" y="910" class="s">plan → apply (R0 → R1 → R2 → R4) → build/push → addons (Helm) → ArgoCD sincroniza do GitHub → e2e → evidências → offload → down</text>
+  <text x="426" y="932" class="s">down: lab.py remove Applications e Ingress, espera o ALB sumir, depois destrói EKS e rede; R0 (sem custo) permanece</text>
+  <text x="426" y="954" class="x">Achados só na conta real: tipos EC2 do Free Plan · key policy KMS × Logs · concorrência Lambda 10 · --read-only no MCP · ALB órfão</text>
+
+  <!-- ===================== SETAS ===================== -->
+  <!-- Terraform: você -> conta -->
+  <path d="M330,165 L410,165" class="ln"/>
+  <text x="338" y="158" class="lb">Terraform</text>
+  <!-- ArgoCD puxa do GitHub: corredor y=350 (entre ALB e EKS) e x=860 (entre ecosystem e argocd) -->
+  <path d="M330,300 L365,300 L365,395 L860,395 L860,440 L870,440" class="lo"/>
+  <text x="56" y="418" class="lb" fill="#b45309">↑ ArgoCD puxa deste repo (pull)</text>
+  <!-- build.py -> push ECR: corredor y=850 (abaixo da VPC) e x=1220 (entre VPC e coluna direita) -->
+  <path d="M330,800 L370,800 L370,850 L1220,850 L1220,262 L1230,262" class="ln"/>
+  <text x="760" y="846" class="lb">build.py → push das 7 imagens</text>
+  <!-- nós puxam do ECR -->
+  <path d="M1230,300 L1198,300 L1198,372 L1190,372" class="ln"/>
+  <text x="1152" y="296" class="lb">pull</text>
+  <!-- Job -> S3 via Pod Identity: corredor y=712 e x=1208 -->
+  <path d="M650,702 L650,712 L1208,712 L1208,380 L1230,380" class="ln"/>
+  <text x="1000" y="726" class="lb">Job → S3 (Pod Identity)</text>
+  <!-- usuário -> ALB: corredor x=380 -->
+  <path d="M330,920 L380,920 L380,300 L430,300" class="lo"/>
+  <text x="338" y="912" class="lb" fill="#b45309">HTTPS</text>
+  <!-- ALB -> pods -->
+  <path d="M835,340 L835,402" class="ln"/>
+  <!-- state/offload -->
+  <path d="M330,640 L355,640" class="ln" stroke-dasharray="4 3"/>
+  <text x="56" y="563" class="lb">↓ state e offload ficam aqui</text>
+</svg>

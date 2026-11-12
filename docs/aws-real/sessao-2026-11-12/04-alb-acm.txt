@@ -1,0 +1,72 @@
+# 04-alb-acm.txt — capturado em 2026-11-12 18:32 (sessão real, antes do destroy)
+
+## load balancer
+$ aws elbv2 describe-load-balancers --load-balancer-arns arn:aws:elasticloadbalancing:us-east-1:<conta>:loadbalancer/app/k8s-argus-c47524f7e5/c0a2b499e1c3051e --query LoadBalancers[].{nome:LoadBalancerName,dns:DNSName,esquema:Scheme,tipo:Type,estado:State.Code,azs:AvailabilityZones[].ZoneName} --output json
+[
+    {
+        "nome": "k8s-argus-c47524f7e5",
+        "dns": "k8s-argus-c47524f7e5-1621887941.us-east-1.elb.amazonaws.com",
+        "esquema": "internet-facing",
+        "tipo": "application",
+        "estado": "active",
+        "azs": [
+            "us-east-1c",
+            "us-east-1a",
+            "us-east-1b"
+        ]
+    }
+]
+
+## listeners
+$ aws elbv2 describe-listeners --load-balancer-arn arn:aws:elasticloadbalancing:us-east-1:<conta>:loadbalancer/app/k8s-argus-c47524f7e5/c0a2b499e1c3051e --query Listeners[].{porta:Port,protocolo:Protocol,politicaTLS:SslPolicy,certificados:length(Certificates || `[]`),acaoPadrao:DefaultActions[0].Type} --output table
+-------------------------------------------------------------------------------------------------
+|                                       DescribeListeners                                       |
++----------------+---------------+---------------------------------------+--------+-------------+
+|   acaoPadrao   | certificados  |              politicaTLS              | porta  |  protocolo  |
++----------------+---------------+---------------------------------------+--------+-------------+
+|  redirect      |  0            |  None                                 |  80    |  HTTP       |
+|  fixed-response|  1            |  ELBSecurityPolicy-TLS13-1-2-2021-06  |  443   |  HTTPS      |
++----------------+---------------+---------------------------------------+--------+-------------+
+
+## target groups e saúde
+$ aws elbv2 describe-target-groups --load-balancer-arn arn:aws:elasticloadbalancing:us-east-1:<conta>:loadbalancer/app/k8s-argus-c47524f7e5/c0a2b499e1c3051e --query TargetGroups[].{nome:TargetGroupName,porta:Port,tipoAlvo:TargetType,healthcheck:HealthCheckPath} --output table
+------------------------------------------------------------------------------
+|                            DescribeTargetGroups                            |
++------------------+------------------------------------+--------+-----------+
+|    healthcheck   |               nome                 | porta  | tipoAlvo  |
++------------------+------------------------------------+--------+-----------+
+|  /health         |  k8s-ecosyste-churnapi-994f870d11  |  1     |  ip       |
+|  /_stcore/health |  k8s-ecosyste-creditsc-103ee4ccfb  |  1     |  ip       |
++------------------+------------------------------------+--------+-----------+
+
+## alvos de k8s-ecosyste-churnapi-994f870d11
+$ aws elbv2 describe-target-health --target-group-arn arn:aws:elasticloadbalancing:us-east-1:<conta>:targetgroup/k8s-ecosyste-churnapi-994f870d11/0423f229ca07bd3f --query TargetHealthDescriptions[].{alvo:Target.Id,porta:Target.Port,estado:TargetHealth.State} --output table
+-------------------------------------
+|       DescribeTargetHealth        |
++-------------+-----------+---------+
+|    alvo     |  estado   |  porta  |
++-------------+-----------+---------+
+|  10.20.46.22|  healthy  |  8000   |
+|  10.20.19.9 |  healthy  |  8000   |
++-------------+-----------+---------+
+
+## alvos de k8s-ecosyste-creditsc-103ee4ccfb
+$ aws elbv2 describe-target-health --target-group-arn arn:aws:elasticloadbalancing:us-east-1:<conta>:targetgroup/k8s-ecosyste-creditsc-103ee4ccfb/8fe826e97688b5c4 --query TargetHealthDescriptions[].{alvo:Target.Id,porta:Target.Port,estado:TargetHealth.State} --output table
+--------------------------------------
+|        DescribeTargetHealth        |
++--------------+-----------+---------+
+|     alvo     |  estado   |  porta  |
++--------------+-----------+---------+
+|  10.20.45.180|  healthy  |  8501   |
+|  10.20.20.254|  healthy  |  8501   |
++--------------+-----------+---------+
+
+## certificado ACM (metadados, sem chave)
+$ aws acm list-certificates --includes keyTypes=RSA_2048 --query CertificateSummaryList[].{dominio:DomainName,tipo:Type,status:Status,emUso:InUse} --output table
+------------------------------------------------
+|               ListCertificates               |
++--------------+--------+---------+------------+
+|    dominio   | emUso  | status  |   tipo     |
++--------------+--------+---------+------------+
+|  *.argus.lab |  True  |  ISSUED |  IMPORTED  |
++--------------+--------+---------+------------+

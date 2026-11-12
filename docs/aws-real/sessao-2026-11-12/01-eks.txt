@@ -1,0 +1,57 @@
+# 01-eks.txt — capturado em 2026-11-12 18:30 (sessão real, antes do destroy)
+
+## cluster
+$ aws eks describe-cluster --name argus-platform-lab-eks --query cluster.{nome:name,versao:version,plataforma:platformVersion,status:status,acesso:accessConfig.authenticationMode,endpointPublico:resourcesVpcConfig.endpointPublicAccess} --output table
+-----------------------------------------------
+|               DescribeCluster               |
++------------------+--------------------------+
+|  acesso          |  API_AND_CONFIG_MAP      |
+|  endpointPublico |  True                    |
+|  nome            |  argus-platform-lab-eks  |
+|  plataforma      |  eks.51                  |
+|  status          |  ACTIVE                  |
+|  versao          |  1.33                    |
++------------------+--------------------------+
+
+## node group
+$ aws eks describe-nodegroup --cluster-name argus-platform-lab-eks --nodegroup-name argus-platform-lab-eks-default --query nodegroup.{tipos:instanceTypes,capacidade:capacityType,ami:amiType,disco:diskSize,escala:scalingConfig,status:status} --output json
+{
+    "tipos": [
+        "c7i-flex.large"
+    ],
+    "capacidade": "SPOT",
+    "ami": "AL2023_x86_64_STANDARD",
+    "disco": 20,
+    "escala": {
+        "minSize": 1,
+        "maxSize": 3,
+        "desiredSize": 2
+    },
+    "status": "ACTIVE"
+}
+
+## add-ons
+$ aws eks list-addons --cluster-name argus-platform-lab-eks --output table
+------------------------------
+|         ListAddons         |
++----------------------------+
+||          addons          ||
+|+--------------------------+|
+||  coredns                 ||
+||  eks-pod-identity-agent  ||
+||  kube-proxy              ||
+||  vpc-cni                 ||
+|+--------------------------+|
+
+## Pod Identity
+$ aws eks list-pod-identity-associations --cluster-name argus-platform-lab-eks --query associations[].{ns:namespace,sa:serviceAccount} --output table
+-------------------------------------------------
+|          ListPodIdentityAssociations          |
++--------------+--------------------------------+
+|      ns      |              sa                |
++--------------+--------------------------------+
+|  ecosystem   |  creditscore-app               |
+|  ecosystem   |  argus-api                     |
+|  ecosystem   |  riskcredit-train              |
+|  kube-system |  aws-load-balancer-controller  |
++--------------+--------------------------------+

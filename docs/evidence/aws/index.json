@@ -8,6 +8,7 @@
     "prometheus-targets.png",
     "creditscore-streamlit.png",
     "churn-api-swagger.png",
-    "argocd-applications.png"
+    "argocd-applications.png",
+    "alb-https-creditscore.png"
   ]
 }

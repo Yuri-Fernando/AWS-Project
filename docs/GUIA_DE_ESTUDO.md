@@ -445,3 +445,75 @@ que mescla por cima. **Overlay** — diferenças por ambiente no Kustomize. **Po
 ServiceAccount, sem chave. **Free Plan** — plano gratuito da AWS (créditos, 6 meses, suspende em vez de cobrar).
 **Offload** — copiar dados para fora antes de destruir. **Contrato** — schema que define a interface entre repos.
 **MCP** — protocolo de ferramentas para agentes (JSON-RPC 2.0).
+
+---
+
+## 20. GitOps de verdade: ArgoCD puxando do GitHub (`lab.py argocd`)
+
+Até a sessão 1 o deploy era **push** (`kubectl apply` a partir da sua máquina). Em GitOps de verdade o cluster
+**puxa** o estado desejado do repositório e o reconcilia sozinho. Como foi feito:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet            # um "gerador" de Applications: uma por item da lista
+spec:
+  goTemplate: true
+  generators: [{list: {elements: [{app: argus-api}, {app: churn-api}, ...]}}]
+  template:
+    metadata: {name: '{{.app}}'}
+    spec:
+      source:
+        repoURL: https://github.com/Yuri-Fernando/AWS-Project.git
+        targetRevision: main
+        path: 'gitops/apps/{{.app}}/overlays/aws'
+        kustomize:
+          images: ['{{.app}}=<conta>.dkr.ecr.us-east-1.amazonaws.com/argus-platform/{{.app}}:lab']
+      syncPolicy: {automated: {prune: true, selfHeal: true}, syncOptions: [CreateNamespace=true]}
+```
+- **`automated` + `prune` + `selfHeal`**: o que muda no git é aplicado; o que some do git é removido; alteração manual no
+  cluster é desfeita.
+- **O problema do ID da conta:** o overlay `aws` no git usa `ACCOUNT_ID` (o ID não é versionado). O `lab.py` gera o
+  ApplicationSet **em memória** com `kustomize.images`, que o ArgoCD aplica como `kustomize edit set image` — a imagem
+  correta chega ao cluster sem o ID ir para o repositório.
+- **Segredos** continuam fora do git: o `lab.py` cria o Secret no cluster antes de ligar o ArgoCD.
+- Um `Application` separado (`platform-env-aws`) aplica `gitops/env/aws` (namespace + ConfigMap).
+
+## 21. Entrada pública: Ingress → ALB com HTTPS
+
+Peças, de baixo para cima:
+1. **Tags nas subnets** (`01-networking`, `aws_ec2_tag`): `kubernetes.io/role/elb=1` diz ao controller onde criar um
+   ALB público.
+2. **AWS Load Balancer Controller** (Helm 3.6.2, `lab.py addons`): um operador no cluster que observa objetos `Ingress`
+   e cria/atualiza ALB, listeners, regras e target groups. Ele precisa de permissão na AWS → role com a **policy
+   oficial** daquela versão, entregue por **Pod Identity** (`06-identity`).
+3. **Certificado** (`02-eks`): sem domínio próprio, um certificado público válido é impossível; o provider `tls` gera
+   chave + certificado **autoassinado** `*.argus.lab` e o `aws_acm_certificate` o importa. Criptografia real; o
+   navegador avisa que a cadeia não é confiável.
+4. **Ingress** (gerado pelo `gen.py`, overlay `aws`):
+   ```yaml
+   alb.ingress.kubernetes.io/group.name: argus        # vários Ingress → UM ALB (custo)
+   alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+   alb.ingress.kubernetes.io/ssl-redirect: "443"      # HTTP responde 301 para HTTPS
+   alb.ingress.kubernetes.io/ssl-policy: ELBSecurityPolicy-TLS13-1-2-2021-06
+   alb.ingress.kubernetes.io/target-type: ip          # ALB fala direto com o IP do pod (VPC CNI)
+   spec.tls: [{hosts: [creditscore.argus.lab]}]        # o controller acha o certificado no ACM por este host
+   ```
+5. **Testar sem DNS:** os hosts `*.argus.lab` não existem na internet. O e2e conecta no DNS do ALB e manda o cabeçalho
+   `Host:`; as evidências usam `--host-resolver-rules="MAP *.argus.lab <ip-do-alb>"` no Chromium.
+
+**A armadilha do desmonte (aconteceu de verdade):** o ALB é criado pelo controller, não pelo Terraform. Se o EKS for
+destruído antes, o ALB fica órfão — continua cobrando e impede apagar a VPC. E se o Pod Identity for desligado antes de
+apagar o Ingress, o controller perde a credencial e não consegue apagar o ALB (o Ingress trava no *finalizer*). Por
+isso o `lab.py` (`release_k8s_cloud_resources`) apaga Applications e Ingress e **espera o ALB sumir** antes de
+desligar o Pod Identity ou destruir o EKS — e aborta se o ALB não sumir em 10 min. Depois do ALB, ele também apaga os security groups do
+controller (`k8s-traffic-<cluster>`), que sobravam e prendiam o `DeleteVpc`.
+
+## 22. Registro do que existiu na nuvem
+
+| Ferramenta | Quando roda | O que grava |
+|---|---|---|
+| `tools/real_snapshot.py` | com a sessão **no ar** | `docs/aws-real/sessao-AAAA-MM-DD/`: EKS, node group, add-ons, Pod Identity, nós, pods, Ingress, Helm, ArgoCD, ALB (listeners, target groups, saúde), certificado (metadados), Lambda, DynamoDB, API Gateway, plano e budgets |
+| `tools/real_inventory.py` | **depois** do destroy | `docs/aws-real/INVENTARIO.md`: cada recurso Terraform com sua configuração, lido do `.tfstate.backup` (o snapshot que o Terraform grava imediatamente antes de destruir) |
+
+As duas mascaram ID da conta, IDs IAM, e-mails e IPs públicos e não leem segredos. Com elas, dá para responder "o que
+exatamente rodou na AWS?" sem nenhum acesso à conta.

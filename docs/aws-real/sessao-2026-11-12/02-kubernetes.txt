@@ -1,0 +1,123 @@
+# 02-kubernetes.txt — capturado em 2026-11-12 18:31 (sessão real, antes do destroy)
+
+## nós
+$ kubectl get nodes -o wide
+NAME                          STATUS   ROLES    AGE   VERSION                INTERNAL-IP   EXTERNAL-IP     OS-IMAGE                        KERNEL-VERSION                     CONTAINER-RUNTIME
+ip-10-20-20-91.ec2.internal   Ready    <none>   25m   v1.33.13-eks-8418f54   10.20.20.91   <ip-publico>    Amazon Linux 2023.12.20261102   6.12.113-138.209.amzn2023.x86_64   containerd://2.3.7+unknown
+ip-10-20-34-7.ec2.internal    Ready    <none>   11m   v1.33.13-eks-8418f54   10.20.34.7    <ip-publico>   Amazon Linux 2023.12.20261102   6.12.113-138.209.amzn2023.x86_64   containerd://2.3.7+unknown
+
+## pods (todos os namespaces)
+$ kubectl get pods -A -o wide
+NAMESPACE     NAME                                                   READY   STATUS    RESTARTS   AGE     IP             NODE                          NOMINATED NODE   READINESS GATES
+argocd        argocd-application-controller-0                        1/1     Running   0          18m     10.20.22.8     ip-10-20-20-91.ec2.internal   <none>           <none>
+argocd        argocd-applicationset-controller-6f9fbd95f-nx7tr       1/1     Running   0          18m     10.20.28.212   ip-10-20-20-91.ec2.internal   <none>           <none>
+argocd        argocd-redis-6bd5cff87c-l2h8m                          1/1     Running   0          18m     10.20.19.124   ip-10-20-20-91.ec2.internal   <none>           <none>
+argocd        argocd-repo-server-57d4b4c68d-m6xc5                    1/1     Running   0          18m     10.20.27.128   ip-10-20-20-91.ec2.internal   <none>           <none>
+argocd        argocd-server-9cb8d88d7-6pxzr                          1/1     Running   0          18m     10.20.16.115   ip-10-20-20-91.ec2.internal   <none>           <none>
+ecosystem     argus-api-7fd5bb96c6-b9jwh                             1/1     Running   0          8m42s   10.20.41.228   ip-10-20-34-7.ec2.internal    <none>           <none>
+ecosystem     argus-api-7fd5bb96c6-mqqfz                             1/1     Running   0          13m     10.20.30.5     ip-10-20-20-91.ec2.internal   <none>           <none>
+ecosystem     churn-api-69cfcf5555-lzpp5                             1/1     Running   0          8m42s   10.20.46.22    ip-10-20-34-7.ec2.internal    <none>           <none>
+ecosystem     churn-api-69cfcf5555-r9856                             1/1     Running   0          13m     10.20.19.9     ip-10-20-20-91.ec2.internal   <none>           <none>
+ecosystem     creditscore-app-5b75b99959-gzx8s                       1/1     Running   0          8m42s   10.20.45.180   ip-10-20-34-7.ec2.internal    <none>           <none>
+ecosystem     creditscore-app-5b75b99959-khvn6                       1/1     Running   0          13m     10.20.20.254   ip-10-20-20-91.ec2.internal   <none>           <none>
+ecosystem     omnimind-api-d77f64db9-t8bl5                           1/1     Running   0          8m42s   10.20.47.194   ip-10-20-34-7.ec2.internal    <none>           <none>
+ecosystem     omnimind-api-d77f64db9-tmtvs                           1/1     Running   0          13m     10.20.27.184   ip-10-20-20-91.ec2.internal   <none>           <none>
+ecosystem     retentiq-api-86dcf99957-nh4wh                          1/1     Running   0          13m     10.20.28.179   ip-10-20-20-91.ec2.internal   <none>           <none>
+ecosystem     retentiq-api-86dcf99957-t5wdl                          1/1     Running   0          8m42s   10.20.46.241   ip-10-20-34-7.ec2.internal    <none>           <none>
+ecosystem     themis-api-587d49c99f-5llxs                            1/1     Running   0          8m42s   10.20.32.54    ip-10-20-34-7.ec2.internal    <none>           <none>
+ecosystem     themis-api-587d49c99f-x6ctj                            1/1     Running   0          13m     10.20.18.172   ip-10-20-20-91.ec2.internal   <none>           <none>
+kube-system   aws-load-balancer-controller-6744d6fd48-2bkqj          1/1     Running   0          15m     10.20.20.227   ip-10-20-20-91.ec2.internal   <none>           <none>
+kube-system   aws-load-balancer-controller-6744d6fd48-2lthp          1/1     Running   0          8m41s   10.20.43.185   ip-10-20-34-7.ec2.internal    <none>           <none>
+kube-system   aws-node-9qj7k                                         2/2     Running   0          24m     10.20.20.91    ip-10-20-20-91.ec2.internal   <none>           <none>
+kube-system   aws-node-rpw9k                                         2/2     Running   0          11m     10.20.34.7     ip-10-20-34-7.ec2.internal    <none>           <none>
+kube-system   coredns-697fb49b84-4zvzg                               1/1     Running   0          8m41s   10.20.37.219   ip-10-20-34-7.ec2.internal    <none>           <none>
+kube-system   coredns-697fb49b84-tm9wx                               1/1     Running   0          7m40s   10.20.20.249   ip-10-20-20-91.ec2.internal   <none>           <none>
+kube-system   eks-pod-identity-agent-4z95w                           1/1     Running   0          24m     10.20.20.91    ip-10-20-20-91.ec2.internal   <none>           <none>
+kube-system   eks-pod-identity-agent-wwjtr                           1/1     Running   0          11m     10.20.34.7     ip-10-20-34-7.ec2.internal    <none>           <none>
+kube-system   kube-proxy-chnk6                                       1/1     Running   0          11m     10.20.34.7     ip-10-20-34-7.ec2.internal    <none>           <none>
+kube-system   kube-proxy-f6cp2                                       1/1     Running   0          24m     10.20.20.91    ip-10-20-20-91.ec2.internal   <none>           <none>
+monitoring    monitoring-grafana-689bd456c6-bl2xz                    3/3     Running   0          8m41s   10.20.43.59    ip-10-20-34-7.ec2.internal    <none>           <none>
+monitoring    monitoring-kube-prometheus-operator-7b774c886f-dpztb   1/1     Running   0          8m41s   10.20.47.16    ip-10-20-34-7.ec2.internal    <none>           <none>
+monitoring    monitoring-kube-state-metrics-5c9dd5bd7b-vrwxm         1/1     Running   0          8m41s   10.20.45.60    ip-10-20-34-7.ec2.internal    <none>           <none>
+monitoring    monitoring-prometheus-node-exporter-6kgwf              1/1     Running   0          11m     10.20.34.7     ip-10-20-34-7.ec2.internal    <none>           <none>
+monitoring    monitoring-prometheus-node-exporter-xknn9              1/1     Running   0          17m     10.20.20.91    ip-10-20-20-91.ec2.internal   <none>           <none>
+monitoring    prometheus-monitoring-kube-prometheus-prometheus-0     2/2     Running   0          17m     10.20.29.230   ip-10-20-20-91.ec2.internal   <none>           <none>
+
+## deployments/jobs do ecossistema
+$ kubectl get deploy,job,svc,pdb,sa -n ecosystem
+NAME                              READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/argus-api         2/2     2            2           13m
+deployment.apps/churn-api         2/2     2            2           13m
+deployment.apps/creditscore-app   2/2     2            2           13m
+deployment.apps/omnimind-api      2/2     2            2           13m
+deployment.apps/retentiq-api      2/2     2            2           13m
+deployment.apps/themis-api        2/2     2            2           13m
+
+NAME                         STATUS     COMPLETIONS   DURATION   AGE
+job.batch/riskcredit-train   Complete   1/1           2m34s      13m
+
+NAME                      TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)   AGE
+service/argus-api         ClusterIP   <ip-publico>    <none>        80/TCP    13m
+service/churn-api         ClusterIP   <ip-publico>    <none>        80/TCP    13m
+service/creditscore-app   ClusterIP   <ip-publico>   <none>        80/TCP    13m
+service/omnimind-api      ClusterIP   <ip-publico>    <none>        80/TCP    13m
+service/retentiq-api      ClusterIP   <ip-publico>   <none>        80/TCP    13m
+service/themis-api        ClusterIP   <ip-publico>    <none>        80/TCP    13m
+
+NAME                                         MIN AVAILABLE   MAX UNAVAILABLE   ALLOWED DISRUPTIONS   AGE
+poddisruptionbudget.policy/argus-api         N/A             1                 1                     13m
+poddisruptionbudget.policy/churn-api         N/A             1                 1                     13m
+poddisruptionbudget.policy/creditscore-app   N/A             1                 1                     13m
+poddisruptionbudget.policy/omnimind-api      N/A             1                 1                     13m
+poddisruptionbudget.policy/retentiq-api      N/A             1                 1                     13m
+poddisruptionbudget.policy/themis-api        N/A             1                 1                     13m
+
+NAME                              SECRETS   AGE
+serviceaccount/argus-api          0         13m
+serviceaccount/churn-api          0         13m
+serviceaccount/creditscore-app    0         13m
+serviceaccount/default            0         14m
+serviceaccount/omnimind-api       0         13m
+serviceaccount/retentiq-api       0         13m
+serviceaccount/riskcredit-train   0         13m
+serviceaccount/themis-api         0         13m
+
+## ingress
+$ kubectl get ingress -A -o wide
+NAMESPACE   NAME              CLASS   HOSTS                   ADDRESS                                                       PORTS     AGE
+ecosystem   churn-api         alb     churn.argus.lab         k8s-argus-c47524f7e5-1621887941.us-east-1.elb.amazonaws.com   80, 443   13m
+ecosystem   creditscore-app   alb     creditscore.argus.lab   k8s-argus-c47524f7e5-1621887941.us-east-1.elb.amazonaws.com   80, 443   13m
+
+## ingress churn-api (detalhe)
+$ kubectl describe ingress churn-api -n ecosystem
+Name:             churn-api
+Labels:           app.kubernetes.io/name=churn-api
+                  app.kubernetes.io/part-of=argus-ecosystem
+Namespace:        ecosystem
+Address:          k8s-argus-c47524f7e5-1621887941.us-east-1.elb.amazonaws.com
+Ingress Class:    alb
+Default backend:  <default>
+TLS:
+  SNI routes churn.argus.lab
+Rules:
+  Host             Path  Backends
+  ----             ----  --------
+  churn.argus.lab  
+                   /   churn-api:80 (10.20.19.9:8000,10.20.46.22:8000)
+Annotations:       alb.ingress.kubernetes.io/group.name: argus
+                   alb.ingress.kubernetes.io/healthcheck-path: /health
+                   alb.ingress.kubernetes.io/listen-ports: [{"HTTP": 80}, {"HTTPS": 443}]
+                   alb.ingress.kubernetes.io/scheme: internet-facing
+                   alb.ingress.kubernetes.io/ssl-policy: ELBSecurityPolicy-TLS13-1-2-2021-06
+                   alb.ingress.kubernetes.io/ssl-redirect: 443
+                   alb.ingress.kubernetes.io/tags: Project=argus-platform,Environment=lab,ManagedBy=aws-load-balancer-controller
+                   alb.ingress.kubernetes.io/target-type: ip
+                   argocd.argoproj.io/tracking-id: churn-api:networking.k8s.io/Ingress:ecosystem/churn-api
+Events:
+  Type    Reason                  Age                From     Message
+  ----    ------                  ----               ----     -------
+  Normal  SuccessfullyReconciled  11m (x2 over 13m)  ingress  Successfully reconciled
+
+## uso de recursos
+$ kubectl top nodes
+error: Metrics API not available

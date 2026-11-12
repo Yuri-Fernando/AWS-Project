@@ -4,19 +4,26 @@
 
 [![platform-floci](https://github.com/Yuri-Fernando/AWS-Project/actions/workflows/platform-floci.yml/badge.svg)](.github/workflows/platform-floci.yml)
 ![e2e](https://img.shields.io/badge/e2e%20local-13%2F13-0a8a0a)
-![e2e-aws](https://img.shields.io/badge/e2e%20AWS%20real-13%2F13-ff9900)
+![e2e-aws](https://img.shields.io/badge/e2e%20AWS%20real-18%2F18-ff9900)
 ![stacks](https://img.shields.io/badge/stacks%20Terraform-7%2F7%20no%20floci-0a8a0a)
 ![apps](https://img.shields.io/badge/apps%20no%20EKS-6%20%2B%201%20job-2a78d6)
-![custo](https://img.shields.io/badge/custo%20AWS%20real-US%24%200%2C86%20(cr%C3%A9ditos)-c8742a)
-![versão](https://img.shields.io/badge/vers%C3%A3o-v0.3.2-4a5563) ![license](https://img.shields.io/badge/license-MIT-4a5563)
+![gitops](https://img.shields.io/badge/ArgoCD-8%2F8%20Synced%20do%20GitHub-0a8a0a)
+![alb](https://img.shields.io/badge/ALB-HTTPS%20TLS%201.3-2a78d6)
+![custo](https://img.shields.io/badge/custo%20AWS%20real-cr%C3%A9ditos%20(fatura%20US%24%200)-c8742a)
+![versão](https://img.shields.io/badge/vers%C3%A3o-v0.4.0-4a5563) ![license](https://img.shields.io/badge/license-MIT-4a5563)
+
+<p align="center">
+  <a href="docs/architecture/argus-platform.svg"><img src="docs/architecture/argus-platform.png" width="100%" alt="Arquitetura da Argus Platform"></a><br>
+  <sub>Arquitetura: o que fica fora da AWS (orquestração, GitHub, emulador, disco local) e o que existiu na conta real · <a href="docs/architecture/argus-platform.svg">versão vetorial</a></sub>
+</p>
 
 ## Status
 
-🟡 **Em desenvolvimento — perfil `free` (AWS emulada) completo; perfil `real` executado de ponta a ponta numa conta
-AWS Free Plan em 11/11/2026 e desmontado no mesmo dia.**
-Na AWS real (us-east-1): rede, EKS 1.33 com 2 nós, ECR, Pod Identity, ArgoCD, kube-prometheus-stack, 6 serviços + 1 job
-e o Credit Score serverless (API Gateway + Lambda + DynamoDB) — `platform/e2e.py --target aws` **13/13**, custo real
-**US$ 0,86 coberto por créditos (fatura US$ 0,00)**. Nenhum dado ficou na AWS: state do Terraform local, dados copiados
+🟡 **Em desenvolvimento — perfil `free` (AWS emulada) completo; perfil `real` executado em duas sessões numa conta
+AWS Free Plan (11 e 12/11/2026), cada uma desmontada no mesmo dia.**
+Na AWS real (us-east-1): rede, EKS 1.33 com 2 nós, ECR, Pod Identity, **ArgoCD sincronizando do GitHub**, **ALB público
+com HTTPS (TLS 1.3)**, kube-prometheus-stack, 6 serviços + 1 job e o Credit Score serverless (API Gateway + Lambda +
+DynamoDB) — `platform/e2e.py --target aws` **18/18**; sessão 1 custou **US$ 0,86 cobertos por créditos (fatura US$ 0,00)**. Nenhum dado ficou na AWS: state do Terraform local, dados copiados
 para fora (`tools/offload.py`) antes do `destroy`; desmonte conferido nas 17 regiões. MCP testado contra a conta real
 (AWS MCP Server, EKS e Terraform). Relato completo: [`docs/AWS_REAL_SESSION.md`](docs/AWS_REAL_SESSION.md) ·
 para estudar e replicar o código de apoio: [`docs/GUIA_DE_ESTUDO.md`](docs/GUIA_DE_ESTUDO.md).
@@ -27,8 +34,11 @@ para estudar e replicar o código de apoio: [`docs/GUIA_DE_ESTUDO.md`](docs/GUIA
 | EKS emulado + GitOps + observabilidade | ✅ | ArgoCD 5/5, kube-prometheus-stack 5/5, `ecosystem` 6 Running + job Completed |
 | Comunicação com os repos | ✅ manifesto + contratos | `ecosystem/repos.json`, `tools/repos.py status`, `contracts/*.schema.json` |
 | Roles IAM + guardrails | ✅ no floci | stack `06-identity`, [`docs/IAM_ROLES.md`](docs/IAM_ROLES.md) |
-| Dados fora da AWS | ✅ local · R2 bloqueado por credencial | `tools/offload.py` (S3 + DynamoDB → `D:rgus-data`) |
-| Perfil `real` (AWS) | ✅ executado e desmontado (11/11/2026) | e2e 13/13 · [`docs/evidence/aws/`](docs/evidence/aws/) · [sessão real](#-sessão-na-aws-real-free-plan) |
+| Dados fora da AWS | ✅ local · R2 bloqueado por credencial | `tools/offload.py` (S3 + DynamoDB → `D:\argus-data`) |
+| Perfil `real` (AWS) | ✅ 2 sessões executadas e desmontadas (11 e 12/11/2026) | e2e 18/18 · [`docs/evidence/aws/`](docs/evidence/aws/) · [sessões reais](docs/AWS_REAL_SESSION.md) |
+| GitOps de verdade | ✅ ArgoCD puxa do GitHub (12/11/2026) | ApplicationSet `ecosystem-aws`: 8/8 Synced + Healthy, `main` → `gitops/apps/*/overlays/aws` |
+| Entrada pública | ✅ ALB + HTTPS (12/11/2026) | AWS Load Balancer Controller 3.6.2, TLS 1.3, redirect 301, 4 alvos healthy; certificado autoassinado no ACM |
+| Registro da operação | ✅ | [`docs/aws-real/INVENTARIO.md`](docs/aws-real/INVENTARIO.md) (cada recurso) · [`docs/aws-real/sessao-2026-11-12/`](docs/aws-real/sessao-2026-11-12/) (estado ao vivo) |
 | MCP | ✅ testado na conta real (12/11/2026) · `free` parcial | `tools/mcp_smoke.py real`: AWS MCP Server (8 ferramentas, `run_script` na conta), EKS (16), Terraform (9) — [`mcp/README.md`](mcp/README.md) |
 | CI no GitHub | ✅ verde (12/11/2026) | `platform-floci.yml`: fmt, GitOps, sync, `up` das 7 stacks no floci, `kubectl` no EKS emulado, `down` limpo (80 recursos) — [run](https://github.com/Yuri-Fernando/AWS-Project/actions/runs/43286240163) |
 | Custo da sessão real | ✅ US$ 0,86 bruto · US$ 0,00 faturado | Cost Explorer; créditos US$ 160 → 159,14 |
@@ -125,8 +135,8 @@ Credit Score serverless: API Gateway v2 ─► Lambda (modelo v3) ─► DynamoD
 | Smoke de imagens | apps sobem isolados | 6/6 HTTP 200 |
 | `e2e.py` | integração ponta a ponta + contratos | 13/13 |
 
-Não verificado nesta revisão: sincronização do ArgoCD a partir do GitHub (o ArgoCD foi instalado, as apps foram
-aplicadas por `lab.py deploy`), `remote_write` para o Amazon Managed Prometheus e o perfil MCP `free` completo.
+Não verificado nesta revisão: `remote_write` para o Amazon Managed Prometheus, perfil MCP `free` completo e certificado
+TLS público (sem domínio próprio, o ALB usa certificado autoassinado — a criptografia é real, a cadeia de confiança não).
 
 ---
 
@@ -176,7 +186,13 @@ Números acima são do laboratório local. Na AWS real (11/11/2026):
 
 ## 🖼️ Evidências
 
-### AWS real (11/11/2026, `platform/evidence.py --target aws`)
+### AWS real (`platform/evidence.py --target aws`, última captura 12/11/2026)
+
+<p align="center">
+  <a href="docs/evidence/aws/argocd-applications.png"><img src="docs/evidence/aws/argocd-applications.png" width="420"></a>
+  <a href="docs/evidence/aws/alb-https-creditscore.png"><img src="docs/evidence/aws/alb-https-creditscore.png" width="420"></a><br>
+  <sub>ArgoCD no EKS real: 8 Applications Healthy + Synced puxadas de <code>github.com/Yuri-Fernando/AWS-Project</code> (main) · Credit Score servido pelo ALB público em <code>https://creditscore.argus.lab</code> (TLS 1.3)</sub>
+</p>
 
 ID da conta, IDs IAM e IPs públicos mascarados automaticamente.
 
@@ -247,7 +263,7 @@ perfil free completo ─► CI verde no GitHub ─► MCP validado ─► sessã
 - **F4 — Serverless Credit Score** ✅ Concluída — Lambda + DynamoDB.
 - **F5 — Contratos e manifesto dos repos** 🟡 Parcial — 3 contratos; `customer_activity.v1` sem fluxo produtor→consumidor.
 - **F6 — CI no GitHub e MCP** ✅ Concluída — CI verde no GitHub (up/kubectl/down no floci); MCP real testado na conta (3 servidores); perfil MCP `free` com validação parcial (limite do emulador).
-- **F7 — Sessões na AWS real** ✅ Concluída — R0–R4 numa sessão (11/11/2026), e2e 13/13, tudo desmontado.
+- **F7 — Sessões na AWS real** ✅ Concluída — sessão 1 (11/11, e2e 13/13) e sessão 2 (12/11, ArgoCD do GitHub + ALB HTTPS, e2e 18/18), ambas desmontadas.
 
 ---
 
@@ -261,6 +277,7 @@ perfil free completo ─► CI verde no GitHub ─► MCP validado ─► sessã
 | v0.3.0 | 2026-11-11 | Execução na AWS real (Free Plan): state local no alvo real (nada salvo na AWS), overlays `aws` com ServiceAccount por app (Pod Identity), `build.py`/`deploy`/`e2e`/`evidence` com `--target aws`, nós free-tier-eligible, e2e 13/13, evidências mascaradas, offload e desmonte |
 | v0.3.1 | 2026-11-12 | Repo publicado; MCP real testado na conta (sem `--read-only`, barreira no IAM), `tools/mcp_session.py` (MFA → sessão de 1 h), workflow do CI corrigido, relato completo da sessão real com custo medido (US$ 0,86) e varredura das 17 regiões |
 | v0.3.2 | 2026-11-12 | CI verde no GitHub (up/kubectl/down no floci): limpeza do security group órfão do EKS emulado antes do destroy da VPC, diagnóstico automático em falha; guia de estudo completo do código fora da AWS (`docs/GUIA_DE_ESTUDO.md`) |
+| v0.4.0 | 2026-11-12 | Sessão real 2: **ArgoCD puxando do GitHub** (`lab.py argocd`, ApplicationSet, ID da conta só em memória) e **ALB + HTTPS** (AWS Load Balancer Controller 3.6.2 via Pod Identity, certificado autoassinado no ACM, TLS 1.3, redirect 301); `lab.py addons` (Helm fixado); liberação automática do ALB antes de desligar o Pod Identity/destroy; e2e 18/18; diagrama de arquitetura; `tools/real_inventory.py` e `tools/real_snapshot.py` (registro do que existiu na nuvem) |
 
 Histórico de decisões: [`docs/plans/`](docs/plans/).
 
@@ -352,6 +369,9 @@ com chave IAM do emulador, senha do Grafana), `.mcp.json`, base de conhecimento 
 | [`envs/free/README.md`](envs/free/README.md) · [`envs/real/README.md`](envs/real/README.md) | perfis |
 | [`mcp/README.md`](mcp/README.md) | servidores MCP e ativação |
 | [`docs/IAM_ROLES.md`](docs/IAM_ROLES.md) | todas as roles/políticas (curso + plano), quem usa, permissões, stack |
+| [`docs/architecture/argus-platform.svg`](docs/architecture/argus-platform.svg) | diagrama de arquitetura (SVG vetorial + PNG) |
+| [`docs/aws-real/INVENTARIO.md`](docs/aws-real/INVENTARIO.md) | cada recurso que existiu na AWS real, com configuração, lido dos states de antes do destroy (`tools/real_inventory.py`) |
+| [`docs/aws-real/sessao-2026-11-12/`](docs/aws-real/sessao-2026-11-12/) | retrato operacional ao vivo da sessão 2: EKS, pods, Ingress, ALB (listeners, alvos), certificado, ArgoCD, Helm, serverless, conta (`tools/real_snapshot.py`) |
 | [`docs/GUIA_DE_ESTUDO.md`](docs/GUIA_DE_ESTUDO.md) | **guia de estudo**: todo o código fora da AWS explicado (orquestrador, alvo duplo no Terraform, emulador, GitOps gerado, imagens, contratos, Lambda empacotada, e2e, evidências mascaradas, offload, MCP via JSON-RPC, CI), roteiro para replicar do zero e exercícios |
 | [`docs/AWS_REAL_SESSION.md`](docs/AWS_REAL_SESSION.md) | sessão real de 11/11/2026: linha do tempo, o que cada camada provou, achados, custo por serviço, desmonte nas 17 regiões, MCP na conta |
 | [`docs/AWS_REAL_MCP_RUNBOOK.md`](docs/AWS_REAL_MCP_RUNBOOK.md) | sessões na AWS real via MCP, custos, e o que acontece quando os créditos acabam |
@@ -377,7 +397,7 @@ com chave IAM do emulador, senha do Grafana), `.mcp.json`, base de conhecimento 
 ## Status
 
 🟡 Em desenvolvimento — perfil `free` completo (e2e 13/13 local); perfil `real` executado na AWS (e2e 13/13, US$ 0,86
-coberto por créditos) e desmontado; MCP testado na conta real; CI verde no GitHub. Pendentes: ArgoCD sincronizando do GitHub e fluxo `customer_activity.v1`.
+coberto por créditos) e desmontado; MCP testado na conta real; CI verde no GitHub. ArgoCD sincronizando do GitHub e ALB com HTTPS validados na sessão 2. Pendente: fluxo `customer_activity.v1`.
 
 ---
 

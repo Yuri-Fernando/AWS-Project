@@ -39,11 +39,23 @@ CACHE = Path(os.environ.get("LAB_CACHE_DIR", r"D:\Claude Temp\cache" if Path("D:
 HEADER = "# GERADO por platform/lab.py sync a partir de _shared/providers.tf — edite o original, não esta cópia.\n"
 
 
+def shown(cmd: list[str]) -> str:
+    """Comando para exibir/logar: valores de segredo (--from-literal=K=V, senhas) viram ***."""
+    out = []
+    for c in cmd:
+        if c.startswith("--from-literal=") and "=" in c[len("--from-literal="):]:
+            c = c[:c.index("=", len("--from-literal=")) + 1] + "***"
+        elif "password=" in c.lower():
+            c = c[:c.lower().index("password=") + len("password=")] + "***"
+        out.append(c)
+    return " ".join(out)
+
+
 def sh(cmd: list[str], env: dict | None = None, check: bool = True, cwd: Path | None = None) -> int:
-    print("  $", " ".join(cmd), flush=True)
+    print("  $", shown(cmd), flush=True)
     r = subprocess.run(cmd, env=env, cwd=cwd)
     if check and r.returncode != 0:
-        sys.exit(f"falhou ({r.returncode}): {' '.join(cmd)}")
+        sys.exit(f"falhou ({r.returncode}): {shown(cmd)}")
     return r.returncode
 
 
@@ -127,6 +139,10 @@ def run(action: str, stacks: list[str], target: str) -> None:
             floci_vpc_orphans(target)
         if action == "destroy" and s == "02-eks" and target == "aws":
             release_k8s_cloud_resources(target)
+        if s == "06-identity" and target == "aws" and action != "plan" and (action == "destroy" or not workload_identity_on()):
+            # desligar o Pod Identity tira a credencial do AWS Load Balancer Controller: sem ela o controller não
+            # consegue apagar o ALB e o Ingress trava no finalizer (erro real de 12/11/2026). Libera o ALB ANTES.
+            release_k8s_cloud_resources(target)
         args = {"apply": ["apply", "-input=false", "-auto-approve"],
                 "destroy": ["destroy", "-input=false", "-auto-approve"],
                 "plan": ["plan", "-input=false"]}[action]
@@ -196,7 +212,8 @@ def addons(target: str) -> None:
                     "--set", "serviceAccount.name=aws-load-balancer-controller"]  # credencial: Pod Identity (stack 06)
         print(f"  $ {' '.join(c if 'adminPassword' not in c else 'grafana.adminPassword=***' for c in cmd)}", flush=True)
         stdin = (ROOT / values).read_text(encoding="utf-8") if values else None
-        r = subprocess.run(cmd, env=env, input=stdin, text=True)
+        # encoding explícito: no Windows o padrão é cp1252 e os comentários em português viram UTF-8 inválido p/ o Helm
+        r = subprocess.run(cmd, env=env, input=stdin, text=True, encoding="utf-8")
         if r.returncode != 0:
             sys.exit(f"helm falhou: {name}")
 
@@ -253,7 +270,16 @@ spec:
         sh(["kubectl", "create", "secret", "generic", "retentiq-api-secrets", "-n", ns,
             f"--from-literal=JWT_SECRET={secrets.token_urlsafe(32)}"], env)  # segredo nunca vai para o git
     print(f"  $ kubectl apply -f - (Application platform-env + ApplicationSet com {len(apps)} apps, repo {REPO_URL})", flush=True)
-    subprocess.run(["kubectl", "apply", "-f", "-"], input=manifest, text=True, env=env, check=True)
+    subprocess.run(["kubectl", "apply", "-f", "-"], input=manifest, text=True, encoding="utf-8", env=env, check=True)
+
+
+def workload_identity_on() -> bool:
+    """Lê enable_workload_identity do tfvars local do alvo real (padrão da variável: true)."""
+    import re
+    if not REAL_TFVARS.exists():
+        return True
+    m = re.search(r"(?m)^\s*enable_workload_identity\s*=\s*(true|false)", REAL_TFVARS.read_text(encoding="utf-8"))
+    return (m.group(1) == "true") if m else True
 
 
 def release_k8s_cloud_resources(target: str) -> None:
@@ -275,6 +301,18 @@ def release_k8s_cloud_resources(target: str) -> None:
                            env=env, capture_output=True, text=True)
         if r.stdout.strip() in ("0", ""):
             print("  ALB do controller removido (ou inexistente): seguro destruir o EKS", flush=True)
+            # o controller também cria SGs (ex.: k8s-traffic-<cluster>) e pode morrer com o cluster antes de apagá-los;
+            # sobrando, eles prendem o DeleteVpc (erro real de 12/11/2026). Só apaga SGs com a tag do controller.
+            sgs = subprocess.run(["aws", "ec2", "describe-security-groups", "--filters",
+                                  f"Name=tag:elbv2.k8s.aws/cluster,Values={cluster}", "--query", "SecurityGroups[].GroupId",
+                                  "--output", "text"], env=env, capture_output=True, text=True).stdout.split()
+            for sg in sgs:
+                for _ in range(12):  # ENIs do ALB levam alguns segundos para sumir
+                    if subprocess.run(["aws", "ec2", "delete-security-group", "--group-id", sg], env=env,
+                                      capture_output=True).returncode == 0:
+                        print(f"  SG do controller removido: {sg}", flush=True)
+                        break
+                    time.sleep(10)
             return
         print(f"  aguardando o controller remover o ALB ({i * 10}s)…", flush=True)
         time.sleep(10)
@@ -335,7 +373,7 @@ def deploy(target: str) -> None:
         rendered = subprocess.run(["kubectl", "kustomize", str(repo / "gitops" / "overlays" / target)],
                                   capture_output=True, text=True, check=True).stdout.replace("ACCOUNT_ID", acct)
         print("  $ kubectl kustomize gitops/overlays/aws | (ACCOUNT_ID -> conta) | kubectl apply -f -", flush=True)
-        subprocess.run(["kubectl", "apply", "-f", "-"], input=rendered, text=True, env=env, check=True)
+        subprocess.run(["kubectl", "apply", "-f", "-"], input=rendered, text=True, encoding="utf-8", env=env, check=True)
         if subprocess.run(["kubectl", "get", "secret", "retentiq-api-secrets", "-n", "ecosystem"], env=env, capture_output=True).returncode != 0:
             sh(["kubectl", "create", "secret", "generic", "retentiq-api-secrets", "-n", "ecosystem",
                 f"--from-literal=JWT_SECRET={secrets.token_urlsafe(32)}"], env)
