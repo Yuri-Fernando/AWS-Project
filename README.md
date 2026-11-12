@@ -40,7 +40,7 @@ para estudar e replicar o código de apoio: [`docs/GUIA_DE_ESTUDO.md`](docs/GUIA
 | Entrada pública | ✅ ALB + HTTPS (12/11/2026) | AWS Load Balancer Controller 3.6.2, TLS 1.3, redirect 301, 4 alvos healthy; certificado autoassinado no ACM |
 | Registro da operação | ✅ | [`docs/aws-real/INVENTARIO.md`](docs/aws-real/INVENTARIO.md) (cada recurso) · [`docs/aws-real/sessao-2026-11-12/`](docs/aws-real/sessao-2026-11-12/) (estado ao vivo) |
 | MCP | ✅ testado na conta real (12/11/2026) · `free` parcial | `tools/mcp_smoke.py real`: AWS MCP Server (8 ferramentas, `run_script` na conta), EKS (16), Terraform (9) — [`mcp/README.md`](mcp/README.md) |
-| CI no GitHub | ✅ verde (12/11/2026) | `platform-floci.yml`: fmt, GitOps, sync, `up` das 7 stacks no floci, `kubectl` no EKS emulado, `down` limpo (80 recursos) — [run](https://github.com/Yuri-Fernando/AWS-Project/actions/runs/43286240163) |
+| CI no GitHub | ✅ verde na v0.4.0 (12/11/2026) | `platform-floci.yml`: fmt, GitOps, sync, `up` das 7 stacks no floci (inclui tags do ALB e role do controller), `kubectl` no EKS emulado, `down` limpo — [run](https://github.com/Yuri-Fernando/AWS-Project/actions/runs/43321619666) |
 | Custo da sessão real | ✅ US$ 0,86 bruto · US$ 0,00 faturado | Cost Explorer; créditos US$ 160 → 159,14 |
 
 ---
