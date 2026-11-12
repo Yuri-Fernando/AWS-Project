@@ -66,6 +66,13 @@ jobs:
           python platform/lab.py kubeconfig --target floci
           KUBECONFIG=platform/.kube/floci.yaml kubectl get nodes -o wide
 
+      - name: diagnóstico do emulador (só em falha)
+        if: failure()
+        run: |
+          docker ps -a --format 'table {{.Names}}\t{{.Image}}\t{{.Status}}'
+          for c in $(docker ps -aq --filter ancestor=floci/floci:2.4.0); do echo "== floci $c"; docker logs --tail 200 "$c" 2>&1; done
+          for c in $(docker ps -aq --filter name=k3s) $(docker ps -aq --filter ancestor=rancher/k3s); do echo "== k3s $c"; docker logs --tail 80 "$c" 2>&1; done
+
       - name: down (05 -> 00)
         if: always()
         run: python platform/lab.py down --target floci
