@@ -1,15 +1,15 @@
 {
-  "_doc": "Perfil real: AWS MCP Server gerenciado (Agent Toolkit for AWS) em modo SOMENTE LEITURA via proxy SigV4, com o perfil argus-lab-readonly. Criação/destruição de recursos é feita pelo Terraform (lab.py --target real) com a role de deploy + MFA. Substitui os antigos aws-api-mcp-server e aws-documentation-mcp-server, como recomenda a AWS.",
+  "_doc": "Perfil real: AWS MCP Server gerenciado (Agent Toolkit for AWS) via proxy SigV4, SOMENTE LEITURA pelo IAM (role com ReadOnlyAccess + free-plan-guard). Sem --read-only de propósito: essa flag esconde aws___run_script e o servidor passa a ler só documentação, não a conta (medido em 12/11/2026: 6 ferramentas em vez de 8). Usa o perfil argus-lab-mcp: credenciais temporárias (1 h) da role argus-platform-lab-mcp-readonly, geradas com MFA por `python tools/mcp_session.py` antes de abrir o Claude Code (o servidor MCP não consegue pedir o código MFA). Criação/destruição de recursos é feita pelo Terraform (lab.py --target real). Substitui os antigos aws-api-mcp-server e aws-documentation-mcp-server, como recomenda a AWS.",
   "mcpServers": {
     "aws-mcp-readonly": {
       "command": "uvx",
       "args": ["mcp-proxy-for-aws-cli==1.7.0", "https://aws-mcp.us-east-1.api.aws/mcp",
-               "--profile", "argus-lab-readonly", "--read-only", "--metadata", "AWS_REGION=us-east-1"]
+               "--profile", "argus-lab-mcp", "--metadata", "AWS_REGION=us-east-1"]
     },
     "eks-readonly": {
       "command": "uvx",
       "args": ["awslabs.eks-mcp-server@0.2.1"],
-      "env": {"AWS_PROFILE": "argus-lab-readonly", "AWS_REGION": "us-east-1", "FASTMCP_LOG_LEVEL": "ERROR"}
+      "env": {"AWS_PROFILE": "argus-lab-mcp", "AWS_REGION": "us-east-1", "FASTMCP_LOG_LEVEL": "ERROR"}
     },
     "terraform": {
       "command": "docker",

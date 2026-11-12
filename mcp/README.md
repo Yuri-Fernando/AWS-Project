@@ -5,7 +5,7 @@ Os mesmos servidores MCP usados no curso (Dia 1 01:45–03:00, Dia 2 01:00–02:
 | Servidor | `free.mcp.json` (floci) | `real.mcp.json` (AWS) | `agent-toolkit.mcp.json` |
 |---|---|---|---|
 | `terraform` (HashiCorp 1.4.1) | docs do registry | idem | — |
-| **AWS MCP Server** gerenciado (via `mcp-proxy-for-aws-cli` 1.7.0) | vem do plugin `aws-core` (escopo de usuário) | `aws-mcp-readonly`: perfil `argus-lab-readonly`, `--read-only` | `--skip-auth`: só documentação e skills |
+| **AWS MCP Server** gerenciado (via `mcp-proxy-for-aws-cli` 1.7.0) | vem do plugin `aws-core` (escopo de usuário) | `aws-mcp-readonly`: perfil `argus-lab-mcp` (role somente leitura via IAM) | `--skip-auth`: só documentação e skills |
 | `aws-api` (awslabs 1.6.0) | `AWS_ENDPOINT_URL` = floci, credencial fictícia | — (substituído pelo AWS MCP Server) | — |
 | `eks` (awslabs 0.2.1) | cluster emulado (`--allow-write`, lab local) | somente leitura | — |
 
@@ -24,7 +24,16 @@ Criar recursos na AWS real continua sendo papel do Terraform (`lab.py --target r
 |---|---|---|
 | `agent-toolkit` | TESTADO (10/11/2026) | `tools/mcp_smoke.py agent-toolkit`: 8 ferramentas, `aws___search_documentation` ok |
 | `free` | CONFIGURADO, validação parcial | ver `docs/floci-compat-matrix.md` (token do `eks-mcp-server` × webhook do floci) |
-| `real` | CONFIGURADO, **bloqueado por configuração** | exige o perfil `argus-lab-readonly` em `~/.aws/config` (runbook, seção 2) |
+| `real` | **TESTADO na conta real (12/11/2026)** | `tools/mcp_smoke.py real`: AWS MCP Server 8 ferramentas com `aws___run_script` lendo STS/EKS/S3 da conta; `eks-mcp-server` 16 ferramentas (autenticou; cluster já destruído); `terraform` 9 ferramentas |
+
+**Por que o perfil real não usa `--read-only`:** medido em 12/11/2026, a flag faz o proxy esconder `aws___run_script` e
+`aws___get_presigned_url` (6 ferramentas em vez de 8) — o servidor passa a ler só documentação, não a conta. A barreira
+fica no IAM: a role `argus-platform-lab-mcp-readonly` tem `ReadOnlyAccess` + `free-plan-guard` (que ainda nega
+criações caras com `aws:ViaAWSMCPService = true`). Escrita na AWS real continua exclusiva do Terraform.
+
+**MFA sem terminal:** a role exige MFA e o servidor MCP não consegue pedir o código. Antes de abrir o Claude Code:
+`python tools/mcp_session.py` (você digita o código) → credenciais temporárias de 1 h no perfil `argus-lab-mcp`,
+que é o perfil usado por `real.mcp.json`. `--status` mostra a expiração.
 
 ## Ativar (exige aprovação — regra AIOX: configuração de MCP é do `@devops`)
 ```bash

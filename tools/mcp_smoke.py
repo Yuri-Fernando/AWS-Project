@@ -37,6 +37,15 @@ READ_CALLS = [
                           "provider_data_type": "resources", "provider_version": "latest"}),
 ]
 
+# perfil real: prova de acesso à CONTA (não só à documentação), só leitura; devolve apenas o sufixo da conta
+ACCOUNT_CALL = ("aws___run_script", {"code": (
+    "ident = await call_boto3(service_name='sts', operation_name='GetCallerIdentity')\n"
+    "eks = await call_boto3(service_name='eks', operation_name='ListClusters', region_name='us-east-1')\n"
+    "s3 = await call_boto3(service_name='s3', operation_name='ListBuckets')\n"
+    "result = {'conta_final': ident['Account'][-4:], 'principal': ident['Arn'].split(':')[-1].split('/')[0],\n"
+    "          'eks_clusters': len(eks.get('clusters', [])), 's3_buckets': len(s3.get('Buckets', []))}\n"
+    "result")})
+
 
 class Client:
     def __init__(self, cmd: list[str], env: dict):
@@ -98,6 +107,7 @@ def main() -> None:
     ap.add_argument("profile", choices=["free", "real", "agent-toolkit"])
     ap.add_argument("--only")
     ap.add_argument("--timeout", type=float, default=240)
+    ap.add_argument("--aws-profile", help="troca o perfil AWS do arquivo (ex.: testar o servidor com outro perfil somente leitura)")
     a = ap.parse_args()
     cfg = json.loads((ROOT / "mcp" / f"{a.profile}.mcp.json").read_text(encoding="utf-8"))["mcpServers"]
     report = {}
@@ -105,6 +115,11 @@ def main() -> None:
         if a.only and name not in a.only.split(","):
             continue
         env = {**os.environ, **srv.get("env", {})}
+        if a.aws_profile:
+            args = srv.get("args", [])
+            srv = {**srv, "args": [a.aws_profile if i and args[i - 1] == "--profile" else x for i, x in enumerate(args)]}
+            if "AWS_PROFILE" in env:
+                env["AWS_PROFILE"] = a.aws_profile
         print(f"\n=== {name}: {srv['command']} {' '.join(srv.get('args', []))}", flush=True)
         c = Client([srv["command"], *srv.get("args", [])], env)
         r = {"ok": False}
@@ -117,6 +132,8 @@ def main() -> None:
             print(f"  servidor {init.get('serverInfo', {}).get('name')} {init.get('serverInfo', {}).get('version', '')} — {len(tools)} ferramentas", flush=True)
             print(f"  {', '.join(tools[:14])}{' …' if len(tools) > 14 else ''}", flush=True)
             call = next(((t, args) for t, args in READ_CALLS if t in tools), None)
+            if a.profile == "real" and ACCOUNT_CALL[0] in tools:
+                call = ACCOUNT_CALL
             if call:
                 res = c.request("tools/call", {"name": call[0], "arguments": call[1]}, 180)
                 text = " ".join(x.get("text", "") for x in res.get("content", []) if isinstance(x, dict))
