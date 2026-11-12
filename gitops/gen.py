@@ -101,12 +101,14 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources: [deployment.yaml, service.yaml, pdb.yaml]
 """)
+    ing = name in SPEC.get("ingress", {}).get("apps", [])
     for target, replicas in (("floci", 1), ("aws", 2)):
+        extra = (", serviceaccount.yaml" + (", ingress.yaml" if ing else "")) if target == "aws" else ""
         w(ROOT / "apps" / name / "overlays" / target / "kustomization.yaml", f"""
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: {NS}
-resources: [../../base{', serviceaccount.yaml' if target == 'aws' else ''}]
+resources: [../../base{extra}]
 replicas:
   - {{name: {name}, count: {replicas}}}
 images:
@@ -116,6 +118,41 @@ images:
 """ + (sa_patch("Deployment", name) if target == "aws" else ""))
         if target == "aws":
             gen_sa(name)
+            if ing:
+                gen_ingress(name, app)
+
+
+def gen_ingress(name: str, app: dict) -> None:
+    """AWS real: Ingress -> ALB compartilhado (group.name) com HTTP->HTTPS. O certificado é achado pelo controller
+    via host do `tls` (ACM, stack 02) — nenhum ARN/ID de conta no git."""
+    cfg = SPEC["ingress"]
+    host = f"{name.split('-')[0]}.{cfg['domain']}"
+    health = app["health"] or "/"
+    w(ROOT / "apps" / name / "overlays" / "aws" / "ingress.yaml", f"""
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {name}
+  labels: {{app.kubernetes.io/name: {name}, app.kubernetes.io/part-of: argus-ecosystem}}
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/group.name: {cfg['group']}
+    alb.ingress.kubernetes.io/listen-ports: '[{{"HTTP": 80}}, {{"HTTPS": 443}}]'
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+    alb.ingress.kubernetes.io/ssl-policy: ELBSecurityPolicy-TLS13-1-2-2021-06
+    alb.ingress.kubernetes.io/healthcheck-path: {health}
+    alb.ingress.kubernetes.io/tags: Project=argus-platform,Environment=lab,ManagedBy=aws-load-balancer-controller
+spec:
+  ingressClassName: alb
+  tls:
+    - hosts: [{host}]
+  rules:
+    - host: {host}
+      http:
+        paths:
+          - {{path: /, pathType: Prefix, backend: {{service: {{name: {name}, port: {{number: 80}}}}}}}}
+""")
 
 
 def gen_job(name: str, job: dict) -> None:

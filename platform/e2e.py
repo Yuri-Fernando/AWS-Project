@@ -67,6 +67,49 @@ def aws(args: list[str], env: dict) -> dict:
     return json.loads(r.stdout) if r.returncode == 0 and r.stdout.strip() else {"_error": r.stderr.strip()[:300]}
 
 
+def aws_edge_checks(kenv: dict, record) -> None:
+    """AWS real: (a) ArgoCD sincronizou as apps do GitHub; (b) ALB público com HTTPS (certificado autoassinado no ACM,
+    por isso sem verificação de cadeia) e redirect HTTP -> HTTPS."""
+    import http.client
+    import ssl
+    r = subprocess.run(["kubectl", "get", "applications", "-n", "argocd", "-o", "json"], env=kenv, capture_output=True, text=True)
+    items = json.loads(r.stdout).get("items", []) if r.returncode == 0 and r.stdout.strip() else []
+    good = [i["metadata"]["name"] for i in items
+            if i.get("status", {}).get("sync", {}).get("status") == "Synced" and i.get("status", {}).get("health", {}).get("status") == "Healthy"]
+    record("argocd/apps-synced-healthy", bool(items) and len(good) == len(items),
+           f"{len(good)}/{len(items)} Applications Synced+Healthy (fonte: GitHub main)")
+    for name, host, path in (("churn-api", "churn.argus.lab", "/health"), ("creditscore-app", "creditscore.argus.lab", "/_stcore/health")):
+        lb = ""
+        for _ in range(60):  # o controller leva alguns minutos para criar o ALB e o DNS propagar
+            lb = subprocess.run(["kubectl", "get", "ingress", name, "-n", NS, "-o",
+                                 "jsonpath={.status.loadBalancer.ingress[0].hostname}"], env=kenv, capture_output=True, text=True).stdout.strip()
+            if lb:
+                try:
+                    socket.gethostbyname(lb)
+                    break
+                except OSError:
+                    pass
+            time.sleep(10)
+        if not lb:
+            record(f"alb/{name}/https", False, "Ingress sem hostname de ALB")
+            continue
+        try:
+            ctx = ssl._create_unverified_context()  # autoassinado: valida o túnel TLS, não a cadeia de confiança
+            c = http.client.HTTPSConnection(lb, 443, timeout=15, context=ctx)
+            c.request("GET", path, headers={"Host": host})
+            resp = c.getresponse()
+            proto = c.sock.version() if c.sock else "?"
+            record(f"alb/{name}/https", resp.status == 200, f"HTTPS {resp.status} via ALB ({proto}), Host {host}")
+            c.close()
+            h = http.client.HTTPConnection(lb, 80, timeout=15)
+            h.request("GET", path, headers={"Host": host})
+            rr = h.getresponse()
+            record(f"alb/{name}/redirect", rr.status in (301, 302) and rr.getheader("Location", "").startswith("https://"),
+                   f"HTTP {rr.status} -> {rr.getheader('Location', '')[:60]}")
+        except Exception as e:
+            record(f"alb/{name}/https", False, f"{type(e).__name__}: {e}")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--target", default="floci")
@@ -145,6 +188,9 @@ def main() -> None:
         record("lambda/credit-score-predict", False, f"{type(e).__name__}: {e}")
     after = aws(["dynamodb", "scan", "--table-name", "credit-score-lab-inference-log", "--select", "COUNT"], aenv).get("Count", 0)
     record("dynamodb/inference-log", after > before, f"registros {before} -> {after}")
+
+    if a.target == "aws":
+        aws_edge_checks(kenv, record)
 
     ok = all(c["ok"] for c in checks)
     report = {"target": a.target, "at": datetime.now(timezone.utc).isoformat(timespec="seconds"), "ok": ok, "checks": checks}

@@ -8,8 +8,50 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 6.0"
     }
+    tls = {
+      source  = "hashicorp/tls"
+      version = "~> 4.1"
+    }
   }
   backend "s3" {}
+}
+
+variable "enable_alb_tls" {
+  description = "Cria um certificado AUTOASSINADO *.argus.lab e importa no ACM para o HTTPS do ALB (sem domínio próprio). O navegador avisa que o certificado não é confiável; a criptografia é real."
+  type        = bool
+  default     = false
+}
+
+variable "alb_domain" {
+  description = "Domínio interno do laboratório usado nos hosts do Ingress (<app>.<domínio>)."
+  type        = string
+  default     = "argus.lab"
+}
+
+# Chave e certificado ficam SÓ no state local (platform/.state, gitignored); destruídos junto com a stack.
+resource "tls_private_key" "alb" {
+  count     = var.enable_alb_tls ? 1 : 0
+  algorithm = "RSA"
+  rsa_bits  = 2048
+}
+
+resource "tls_self_signed_cert" "alb" {
+  count                 = var.enable_alb_tls ? 1 : 0
+  private_key_pem       = tls_private_key.alb[0].private_key_pem
+  validity_period_hours = 168
+  allowed_uses          = ["key_encipherment", "digital_signature", "server_auth"]
+  dns_names             = ["*.${var.alb_domain}", var.alb_domain]
+  subject {
+    common_name  = "*.${var.alb_domain}"
+    organization = "Argus Platform Lab"
+  }
+}
+
+# O AWS Load Balancer Controller descobre este certificado pelos hosts do `tls` do Ingress (sem ARN no git).
+resource "aws_acm_certificate" "alb" {
+  count            = var.enable_alb_tls ? 1 : 0
+  private_key      = tls_private_key.alb[0].private_key_pem
+  certificate_body = tls_self_signed_cert.alb[0].cert_pem
 }
 
 variable "kubernetes_version" {
@@ -126,4 +168,13 @@ output "ecr_repository_urls" {
 
 output "ecr_repository_arns" {
   value = [for r in aws_ecr_repository.this : r.arn]
+}
+
+output "vpc_id" {
+  description = "Usado pelo AWS Load Balancer Controller (--set vpcId)."
+  value       = local.network.vpc_id
+}
+
+output "alb_certificate_domain" {
+  value = var.enable_alb_tls ? "*.${var.alb_domain}" : null
 }

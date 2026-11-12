@@ -261,6 +261,42 @@ resource "aws_iam_role_policy" "workload" {
   })
 }
 
+# AWS Load Balancer Controller (Ingress -> ALB): policy OFICIAL fixada na versão do chart (v3.6.2),
+# credencial por EKS Pod Identity na ServiceAccount kube-system/aws-load-balancer-controller.
+resource "aws_iam_policy" "lbc" {
+  count       = var.enable_workload_identity ? 1 : 0
+  name        = "${local.name_prefix}-aws-load-balancer-controller"
+  description = "Policy oficial do AWS Load Balancer Controller v3.6.2 (docs/install/iam_policy.json)"
+  policy      = file("${path.module}/policies/aws-load-balancer-controller-v3.6.2.json")
+}
+
+resource "aws_iam_role" "lbc" {
+  count = var.enable_workload_identity ? 1 : 0
+  name  = "${local.name_prefix}-aws-load-balancer-controller"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { Service = "pods.eks.amazonaws.com" }
+      Action    = ["sts:AssumeRole", "sts:TagSession"]
+    }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "lbc" {
+  count      = var.enable_workload_identity ? 1 : 0
+  role       = aws_iam_role.lbc[0].name
+  policy_arn = aws_iam_policy.lbc[0].arn
+}
+
+resource "aws_eks_pod_identity_association" "lbc" {
+  count           = var.enable_workload_identity ? 1 : 0
+  cluster_name    = local.cluster
+  namespace       = "kube-system"
+  service_account = "aws-load-balancer-controller"
+  role_arn        = aws_iam_role.lbc[0].arn
+}
+
 resource "aws_eks_pod_identity_association" "workload" {
   for_each        = local.workloads
   cluster_name    = local.cluster

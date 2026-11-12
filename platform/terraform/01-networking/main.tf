@@ -55,6 +55,23 @@ module "networking" {
   single_nat_gateway   = var.single_nat_gateway
 }
 
+# --- Descoberta de subnets pelo AWS Load Balancer Controller (Ingress -> ALB) ---------------------
+# O controller procura subnets com kubernetes.io/role/elb=1 (ALB público) e .../internal-elb=1 (interno).
+# Tags aplicadas aqui (aws_ec2_tag) para não alterar o módulo de rede do submódulo enterprise.
+resource "aws_ec2_tag" "public_elb" {
+  count       = length(var.azs)
+  resource_id = module.networking.public_subnet_ids[count.index]
+  key         = "kubernetes.io/role/elb"
+  value       = "1"
+}
+
+resource "aws_ec2_tag" "private_internal_elb" {
+  count       = length(var.azs)
+  resource_id = module.networking.private_subnet_ids[count.index]
+  key         = "kubernetes.io/role/internal-elb"
+  value       = "1"
+}
+
 # --- Flow logs (do dvn-workshop: CloudWatch + role dedicada) ----------------
 resource "aws_cloudwatch_log_group" "flow_logs" {
   count             = var.enable_flow_logs ? 1 : 0

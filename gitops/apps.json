@@ -24,5 +24,7 @@
                          "env": {"ARTIFACT_BUCKET": "argus-platform-lab-ml-artifacts"}}
   },
   "aws_env": {"AWS_DEFAULT_REGION": "us-east-1", "AWS_REGION": "us-east-1"},
+  "ingress": {"_doc": "Só overlay aws: Ingress -> ALB único (group argus) com HTTPS; host <app>.<domain>; certificado autoassinado no ACM (stack 02, enable_alb_tls).",
+              "domain": "argus.lab", "group": "argus", "apps": ["creditscore-app", "churn-api"]},
   "floci_env": {"AWS_ENDPOINT_URL": "http://floci:4566", "AWS_ACCESS_KEY_ID": "test", "AWS_SECRET_ACCESS_KEY": "test", "AWS_DEFAULT_REGION": "us-east-1"}
 }

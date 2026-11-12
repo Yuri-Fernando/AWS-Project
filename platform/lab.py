@@ -7,7 +7,9 @@
   python platform/lab.py plan  [--target ...]
   python platform/lab.py down  [--target ...]           # destroy em ordem reversa
   python platform/lab.py kubeconfig [--target ...]      # escreve platform/.kube/<target>.yaml
-  python platform/lab.py deploy [--target ...]          # aplica o ecossistema (gitops) no cluster
+  python platform/lab.py deploy [--target ...]          # aplica o ecossistema (gitops) no cluster via kubectl
+  python platform/lab.py addons [--target ...]          # Helm: ArgoCD + kube-prometheus-stack (+ AWS LB Controller na AWS)
+  python platform/lab.py argocd [--target ...]          # GitOps de verdade: ArgoCD sincroniza as apps do GitHub
   python platform/lab.py status [--target ...]          # outputs de cada stack
 
 TARGET=aws exige confirmação interativa (--yes-real-aws) e credenciais do ambiente: o padrão é floci (R$ 0).
@@ -123,6 +125,8 @@ def run(action: str, stacks: list[str], target: str) -> None:
         init(s, target)
         if action == "destroy" and s == "01-networking" and target == "floci":
             floci_vpc_orphans(target)
+        if action == "destroy" and s == "02-eks" and target == "aws":
+            release_k8s_cloud_resources(target)
         args = {"apply": ["apply", "-input=false", "-auto-approve"],
                 "destroy": ["destroy", "-input=false", "-auto-approve"],
                 "plan": ["plan", "-input=false"]}[action]
@@ -150,6 +154,131 @@ def floci_vpc_orphans(target: str) -> None:
         if sg["GroupName"] != "default":
             print(f"  órfão (emulador): security group {sg['GroupId']} ({sg['GroupName']})", flush=True)
             aws("ec2", "delete-security-group", "--group-id", sg["GroupId"])
+
+
+REPO_URL = "https://github.com/Yuri-Fernando/AWS-Project.git"
+HELM = {  # versões fixadas (reprodutível)
+    "argocd": ("argo/argo-cd", "10.13.1", "argocd", "k8s/argocd-values.yaml"),
+    "monitoring": ("prometheus-community/kube-prometheus-stack", "92.21.1", "monitoring", "k8s/monitoring-values.yaml"),
+    "aws-load-balancer-controller": ("eks/aws-load-balancer-controller", "3.6.2", "kube-system", None),
+}
+
+
+def kenv(target: str) -> dict:
+    return {**tf_env("02-eks", target), "KUBECONFIG": str(ROOT / ".kube" / f"{target}.yaml")}
+
+
+def addons(target: str) -> None:
+    """Instala os add-ons do cluster com Helm (antes eram comandos manuais do README)."""
+    env = kenv(target)
+    for repo, url in (("argo", "https://argoproj.github.io/argo-helm"),
+                      ("prometheus-community", "https://prometheus-community.github.io/helm-charts"),
+                      ("eks", "https://aws.github.io/eks-charts")):
+        sh(["helm", "repo", "add", repo, url, "--force-update"], env, check=False)
+    sh(["helm", "repo", "update"], env, check=False)
+    graf_pw = ROOT / ".kube" / "grafana-admin.txt"  # gitignored; gerada uma vez
+    if not graf_pw.exists():
+        import secrets
+        graf_pw.write_text(secrets.token_urlsafe(18), encoding="utf-8")
+    for name, (chart, version, ns, values) in HELM.items():
+        if name == "aws-load-balancer-controller" and target != "aws":
+            continue  # no emulador não há ALB real
+        cmd = ["helm", "upgrade", "--install", name, chart, "--version", version, "-n", ns, "--create-namespace",
+               "--wait", "--timeout", "12m"]
+        if values:  # "-f -" + stdin: o -f aceita lista separada por vírgula e quebraria caminhos com vírgula
+            cmd += ["-f", "-"]
+        if name == "monitoring":
+            cmd += ["--set-string", f"grafana.adminPassword={graf_pw.read_text(encoding='utf-8').strip()}"]
+        if name == "aws-load-balancer-controller":
+            o = outputs("02-eks", target)
+            cmd += ["--set", f"clusterName={o['cluster_name']}", "--set", "region=us-east-1",
+                    "--set", f"vpcId={o['vpc_id']}", "--set", "serviceAccount.create=true",
+                    "--set", "serviceAccount.name=aws-load-balancer-controller"]  # credencial: Pod Identity (stack 06)
+        print(f"  $ {' '.join(c if 'adminPassword' not in c else 'grafana.adminPassword=***' for c in cmd)}", flush=True)
+        stdin = (ROOT / values).read_text(encoding="utf-8") if values else None
+        r = subprocess.run(cmd, env=env, input=stdin, text=True)
+        if r.returncode != 0:
+            sys.exit(f"helm falhou: {name}")
+
+
+def argocd_apps(target: str) -> None:
+    """GitOps de verdade: um ApplicationSet faz o ArgoCD PUXAR cada app de gitops/apps/<app>/overlays/<target> no
+    GitHub (sync automático, prune, self-heal). Na AWS real o ID da conta entra só aqui, em memória, como override
+    de imagem do Kustomize — o repositório continua com ACCOUNT_ID."""
+    env = kenv(target)
+    spec = json.loads((ROOT.parent / "gitops" / "apps.json").read_text(encoding="utf-8"))
+    apps = list(spec["apps"]) + list(spec["jobs"])
+    overlay = "aws" if target == "aws" else "floci"
+    images = ""
+    if target == "aws":
+        acct = subprocess.run(["aws", "sts", "get-caller-identity", "--query", "Account", "--output", "text"],
+                              env=env, capture_output=True, text=True, check=True).stdout.strip()
+        reg = f"{acct}.dkr.ecr.us-east-1.amazonaws.com/argus-platform"
+        images = f"""
+        kustomize:
+          images: ['{{{{.app}}}}={reg}/{{{{.app}}}}:lab']"""
+    elements = "".join(f"\n          - app: {a}" for a in apps)
+    manifest = f"""apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata: {{name: platform-env-{overlay}, namespace: argocd}}
+spec:
+  project: default
+  source: {{repoURL: {REPO_URL}, targetRevision: main, path: gitops/env/{overlay}}}
+  destination: {{server: https://kubernetes.default.svc, namespace: {spec['namespace']}}}
+  syncPolicy: {{automated: {{prune: true, selfHeal: true}}, syncOptions: [CreateNamespace=true]}}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata: {{name: ecosystem-{overlay}, namespace: argocd}}
+spec:
+  goTemplate: true
+  generators:
+    - list:
+        elements:{elements}
+  template:
+    metadata: {{name: '{{{{.app}}}}', labels: {{app.kubernetes.io/part-of: argus-ecosystem}}}}
+    spec:
+      project: default
+      source:
+        repoURL: {REPO_URL}
+        targetRevision: main
+        path: 'gitops/apps/{{{{.app}}}}/overlays/{overlay}'{images}
+      destination: {{server: https://kubernetes.default.svc, namespace: {spec['namespace']}}}
+      syncPolicy: {{automated: {{prune: true, selfHeal: true}}, syncOptions: [CreateNamespace=true]}}
+"""
+    import secrets
+    ns = spec["namespace"]
+    subprocess.run(["kubectl", "create", "namespace", ns], env=env, capture_output=True)
+    if subprocess.run(["kubectl", "get", "secret", "retentiq-api-secrets", "-n", ns], env=env, capture_output=True).returncode:
+        sh(["kubectl", "create", "secret", "generic", "retentiq-api-secrets", "-n", ns,
+            f"--from-literal=JWT_SECRET={secrets.token_urlsafe(32)}"], env)  # segredo nunca vai para o git
+    print(f"  $ kubectl apply -f - (Application platform-env + ApplicationSet com {len(apps)} apps, repo {REPO_URL})", flush=True)
+    subprocess.run(["kubectl", "apply", "-f", "-"], input=manifest, text=True, env=env, check=True)
+
+
+def release_k8s_cloud_resources(target: str) -> None:
+    """AWS real, ANTES de destruir o EKS: o ALB e seus security groups são criados pelo controller (fora do
+    Terraform). Se o cluster morrer antes, o ALB fica órfão (cobrando) e a VPC não apaga. Ordem: parar o ArgoCD de
+    recriar (apaga Applications), apagar os Ingress, esperar o controller remover o ALB."""
+    import time
+    env = kenv(target)
+    if not (ROOT / ".kube" / f"{target}.yaml").exists():
+        return
+    subprocess.run(["kubectl", "delete", "applicationsets,applications", "--all", "-n", "argocd", "--wait=true",
+                    "--timeout=180s"], env=env, capture_output=True)
+    subprocess.run(["kubectl", "delete", "ingress", "--all", "-A", "--wait=true", "--timeout=300s"], env=env)
+    cluster = outputs("02-eks", target).get("cluster_name", "")
+    for i in range(60):
+        r = subprocess.run(["aws", "resourcegroupstaggingapi", "get-resources", "--resource-type-filters",
+                            "elasticloadbalancing:loadbalancer", "--tag-filters", f"Key=elbv2.k8s.aws/cluster,Values={cluster}",
+                            "--query", "length(ResourceTagMappingList)", "--output", "text"],
+                           env=env, capture_output=True, text=True)
+        if r.stdout.strip() in ("0", ""):
+            print("  ALB do controller removido (ou inexistente): seguro destruir o EKS", flush=True)
+            return
+        print(f"  aguardando o controller remover o ALB ({i * 10}s)…", flush=True)
+        time.sleep(10)
+    sys.exit("ALB ainda existe após 10 min: remova manualmente antes do destroy (evita custo e VPC presa)")
 
 
 def outputs(stack: str, target: str) -> dict:
@@ -238,7 +367,8 @@ def floci(cmd: str) -> None:
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("cmd", choices=["floci-up", "floci-down", "sync", "up", "plan", "down", "kubeconfig", "deploy", "status"])
+    ap.add_argument("cmd", choices=["floci-up", "floci-down", "sync", "up", "plan", "down", "kubeconfig", "deploy",
+                                    "addons", "argocd", "status"])
     ap.add_argument("--target", choices=["free", "real", "floci", "aws"], default=os.environ.get("TARGET", "free"),
                     help="free = AWS emulada no floci (R$ 0, padrão) | real = AWS de verdade (créditos; exige --yes-real-aws)")
     ap.add_argument("--stacks", help="lista separada por vírgula (padrão: todas)")
@@ -266,6 +396,10 @@ def main() -> None:
         kubeconfig(a.target)
     elif a.cmd == "deploy":
         deploy(a.target)
+    elif a.cmd == "addons":
+        addons(a.target)
+    elif a.cmd == "argocd":
+        argocd_apps(a.target)
     elif a.cmd == "status":
         for s in stacks:
             print(f"## {s}: {json.dumps(outputs(s, a.target), ensure_ascii=False)[:600]}")
