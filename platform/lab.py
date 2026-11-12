@@ -121,10 +121,35 @@ def run(action: str, stacks: list[str], target: str) -> None:
             continue
         print(f"\n=== {action} {s} ({target}) ===", flush=True)
         init(s, target)
+        if action == "destroy" and s == "01-networking" and target == "floci":
+            floci_vpc_orphans(target)
         args = {"apply": ["apply", "-input=false", "-auto-approve"],
                 "destroy": ["destroy", "-input=false", "-auto-approve"],
                 "plan": ["plan", "-input=false"]}[action]
         sh(["terraform", f"-chdir={TF / s}", *args, *tf_vars(target)], tf_env(s, target))
+
+
+def floci_vpc_orphans(target: str) -> None:
+    """Só no emulador: o EKS emulado não remove o security group/ENIs que cria na VPC ao apagar o cluster (na AWS real
+    o EKS remove), e o DeleteVpc falha com DependencyViolation. Apaga o que o Terraform NÃO gerencia antes do destroy."""
+    vpc = outputs("01-networking", target).get("vpc_id")
+    if not vpc:
+        return
+    env = tf_env("01-networking", target)
+
+    def aws(*args: str) -> dict:
+        r = subprocess.run(["aws", *args, "--output", "json"], env=env, capture_output=True, text=True)
+        return json.loads(r.stdout) if r.returncode == 0 and r.stdout.strip() else {}
+
+    for eni in aws("ec2", "describe-network-interfaces", "--filters", f"Name=vpc-id,Values={vpc}").get("NetworkInterfaces", []):
+        print(f"  órfão (emulador): ENI {eni['NetworkInterfaceId']}", flush=True)
+        if eni.get("Attachment", {}).get("AttachmentId"):
+            aws("ec2", "detach-network-interface", "--attachment-id", eni["Attachment"]["AttachmentId"], "--force")
+        aws("ec2", "delete-network-interface", "--network-interface-id", eni["NetworkInterfaceId"])
+    for sg in aws("ec2", "describe-security-groups", "--filters", f"Name=vpc-id,Values={vpc}").get("SecurityGroups", []):
+        if sg["GroupName"] != "default":
+            print(f"  órfão (emulador): security group {sg['GroupId']} ({sg['GroupName']})", flush=True)
+            aws("ec2", "delete-security-group", "--group-id", sg["GroupId"])
 
 
 def outputs(stack: str, target: str) -> dict:

@@ -76,3 +76,17 @@ jobs:
       - name: down (05 -> 00)
         if: always()
         run: python platform/lab.py down --target floci
+
+      - name: o que segura a VPC (só se o down falhar)
+        if: failure()
+        run: |
+          export AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test AWS_DEFAULT_REGION=us-east-1 AWS_ENDPOINT_URL=$FLOCI_ENDPOINT
+          for v in $(aws ec2 describe-vpcs --filters Name=isDefault,Values=false --query 'Vpcs[].VpcId' --output text); do
+            echo "== dependências da $v"
+            for r in "describe-security-groups:SecurityGroups[].[GroupId,GroupName]" "describe-network-interfaces:NetworkInterfaces[].[NetworkInterfaceId,Description]" \
+                     "describe-subnets:Subnets[].SubnetId" "describe-route-tables:RouteTables[].RouteTableId" "describe-internet-gateways:InternetGateways[].InternetGatewayId" \
+                     "describe-vpc-endpoints:VpcEndpoints[].VpcEndpointId" "describe-nat-gateways:NatGateways[].NatGatewayId"; do
+              cmd=${r%%:*}; q=${r#*:}; f=vpc-id; [ "$cmd" = describe-internet-gateways ] && f=attachment.vpc-id
+              echo "-- $cmd"; aws ec2 $cmd --filters Name=$f,Values=$v --query "$q" --output text || true
+            done
+          done
