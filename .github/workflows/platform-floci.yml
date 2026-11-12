@@ -31,7 +31,8 @@ jobs:
         options: >-
           --health-cmd "bash -c '</dev/tcp/127.0.0.1/4566'" --health-interval 5s --health-retries 30
     env:
-      LAB_CACHE_DIR: ${{ runner.temp }}/lab-cache
+      # contexto `runner` não existe no env do job (workflow seria rejeitado): caminho fixo do runner Linux
+      LAB_CACHE_DIR: /tmp/lab-cache
       FLOCI_ENDPOINT: http://localhost.floci.io:4566
     steps:
       - uses: actions/checkout@v4
