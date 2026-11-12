@@ -8,7 +8,7 @@
 ![stacks](https://img.shields.io/badge/stacks%20Terraform-7%2F7%20no%20floci-0a8a0a)
 ![apps](https://img.shields.io/badge/apps%20no%20EKS-6%20%2B%201%20job-2a78d6)
 ![custo](https://img.shields.io/badge/custo%20AWS%20real-US%24%200%2C86%20(cr%C3%A9ditos)-c8742a)
-![versão](https://img.shields.io/badge/vers%C3%A3o-v0.3.1-4a5563) ![license](https://img.shields.io/badge/license-MIT-4a5563)
+![versão](https://img.shields.io/badge/vers%C3%A3o-v0.3.2-4a5563) ![license](https://img.shields.io/badge/license-MIT-4a5563)
 
 ## Status
 
@@ -30,7 +30,7 @@ para estudar e replicar o código de apoio: [`docs/GUIA_DE_ESTUDO.md`](docs/GUIA
 | Dados fora da AWS | ✅ local · R2 bloqueado por credencial | `tools/offload.py` (S3 + DynamoDB → `D:rgus-data`) |
 | Perfil `real` (AWS) | ✅ executado e desmontado (11/11/2026) | e2e 13/13 · [`docs/evidence/aws/`](docs/evidence/aws/) · [sessão real](#-sessão-na-aws-real-free-plan) |
 | MCP | ✅ testado na conta real (12/11/2026) · `free` parcial | `tools/mcp_smoke.py real`: AWS MCP Server (8 ferramentas, `run_script` na conta), EKS (16), Terraform (9) — [`mcp/README.md`](mcp/README.md) |
-| CI no GitHub | 🟡 publicado; workflow corrigido em 12/11/2026 | `.github/workflows/platform-floci.yml` (floci como service container) |
+| CI no GitHub | ✅ verde (12/11/2026) | `platform-floci.yml`: fmt, GitOps, sync, `up` das 7 stacks no floci, `kubectl` no EKS emulado, `down` limpo (80 recursos) — [run](https://github.com/Yuri-Fernando/AWS-Project/actions/runs/43286240163) |
 | Custo da sessão real | ✅ US$ 0,86 bruto · US$ 0,00 faturado | Cost Explorer; créditos US$ 160 → 159,14 |
 
 ---
@@ -246,7 +246,7 @@ perfil free completo ─► CI verde no GitHub ─► MCP validado ─► sessã
 - **F3 — EKS + GitOps + observabilidade** ✅ Concluída — apps e plataforma no cluster.
 - **F4 — Serverless Credit Score** ✅ Concluída — Lambda + DynamoDB.
 - **F5 — Contratos e manifesto dos repos** 🟡 Parcial — 3 contratos; `customer_activity.v1` sem fluxo produtor→consumidor.
-- **F6 — CI no GitHub e MCP** 🟡 Parcial — repo publicado, workflow corrigido; MCP real testado (3 servidores), perfil `free` parcial.
+- **F6 — CI no GitHub e MCP** ✅ Concluída — CI verde no GitHub (up/kubectl/down no floci); MCP real testado na conta (3 servidores); perfil MCP `free` com validação parcial (limite do emulador).
 - **F7 — Sessões na AWS real** ✅ Concluída — R0–R4 numa sessão (11/11/2026), e2e 13/13, tudo desmontado.
 
 ---
@@ -260,6 +260,7 @@ perfil free completo ─► CI verde no GitHub ─► MCP validado ─► sessã
 
 | v0.3.0 | 2026-11-11 | Execução na AWS real (Free Plan): state local no alvo real (nada salvo na AWS), overlays `aws` com ServiceAccount por app (Pod Identity), `build.py`/`deploy`/`e2e`/`evidence` com `--target aws`, nós free-tier-eligible, e2e 13/13, evidências mascaradas, offload e desmonte |
 | v0.3.1 | 2026-11-12 | Repo publicado; MCP real testado na conta (sem `--read-only`, barreira no IAM), `tools/mcp_session.py` (MFA → sessão de 1 h), workflow do CI corrigido, relato completo da sessão real com custo medido (US$ 0,86) e varredura das 17 regiões |
+| v0.3.2 | 2026-11-12 | CI verde no GitHub (up/kubectl/down no floci): limpeza do security group órfão do EKS emulado antes do destroy da VPC, diagnóstico automático em falha; guia de estudo completo do código fora da AWS (`docs/GUIA_DE_ESTUDO.md`) |
 
 Histórico de decisões: [`docs/plans/`](docs/plans/).
 
@@ -376,7 +377,7 @@ com chave IAM do emulador, senha do Grafana), `.mcp.json`, base de conhecimento 
 ## Status
 
 🟡 Em desenvolvimento — perfil `free` completo (e2e 13/13 local); perfil `real` executado na AWS (e2e 13/13, US$ 0,86
-coberto por créditos) e desmontado; MCP testado na conta real. Pendentes: ArgoCD sincronizando do GitHub e fluxo `customer_activity.v1`.
+coberto por créditos) e desmontado; MCP testado na conta real; CI verde no GitHub. Pendentes: ArgoCD sincronizando do GitHub e fluxo `customer_activity.v1`.
 
 ---
 

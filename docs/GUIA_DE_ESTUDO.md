@@ -365,7 +365,8 @@ perfil real **não** a usa e confia no IAM.
 O mesmo fluxo do laboratório no GitHub Actions, **sem conta AWS e sem segredo**: o floci roda como *service container*
 (com o `docker.sock` do runner, para o k3s subir). Passos: `terraform fmt -check` → `gen.py` + `git diff --exit-code`
 (GitOps commitado = gerado) → `lab.py sync` + diff (providers sincronizados) → `up` das stacks no floci →
-`kubectl get nodes` no EKS emulado → diagnóstico em falha (logs do floci e do k3s) → `down` sempre.
+`kubectl get nodes` no EKS emulado → diagnóstico em falha (logs do floci e do k3s) → `down` sempre → se o `down`
+falhar, lista o que segura a VPC (SGs, ENIs, subnets, rotas, IGW, endpoints, NAT). Estado em 12/11/2026: **verde**.
 Detalhe que já quebrou o workflow: o contexto `runner` **não existe** no `env` do job (`${{ runner.temp }}` faz o
 GitHub rejeitar o arquivo) — por isso `LAB_CACHE_DIR: /tmp/lab-cache`.
 
@@ -433,6 +434,7 @@ python platform/lab.py down && python platform/lab.py floci-down
 | Concorrência da Lambda | conta nova tem limite 10 e a AWS exige 10 não reservadas |
 | `--read-only` no MCP | esconde a ferramenta que lê a conta; a barreira certa é o IAM |
 | Workflow rejeitado | `runner` não existe no `env` do job |
+| `DeleteVpc` → `DependencyViolation` só no emulador | o EKS emulado deixa o security group `eks-cluster-sg-*` na VPC (a AWS real remove); `lab.py` apaga ENIs/SGs não gerenciados antes do destroy da rede (`floci_vpc_orphans`) — causa confirmada pelo diagnóstico do CI |
 | Placeholder no budget | conferir valores no state depois do apply, não só o "Apply complete" |
 | `npm`/builds no Google Drive | milhares de arquivos pequenos travam a sincronização: builds e caches ficam fora (D:) |
 
