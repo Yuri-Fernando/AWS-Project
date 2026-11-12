@@ -18,7 +18,8 @@ Na AWS real (us-east-1): rede, EKS 1.33 com 2 nós, ECR, Pod Identity, ArgoCD, k
 e o Credit Score serverless (API Gateway + Lambda + DynamoDB) — `platform/e2e.py --target aws` **13/13**, custo real
 **US$ 0,86 coberto por créditos (fatura US$ 0,00)**. Nenhum dado ficou na AWS: state do Terraform local, dados copiados
 para fora (`tools/offload.py`) antes do `destroy`; desmonte conferido nas 17 regiões. MCP testado contra a conta real
-(AWS MCP Server, EKS e Terraform). Relato completo: [`docs/AWS_REAL_SESSION.md`](docs/AWS_REAL_SESSION.md).
+(AWS MCP Server, EKS e Terraform). Relato completo: [`docs/AWS_REAL_SESSION.md`](docs/AWS_REAL_SESSION.md) ·
+para estudar e replicar o código de apoio: [`docs/GUIA_DE_ESTUDO.md`](docs/GUIA_DE_ESTUDO.md).
 
 | Área | Estado | Evidência |
 |---|---|---|
@@ -350,6 +351,7 @@ com chave IAM do emulador, senha do Grafana), `.mcp.json`, base de conhecimento 
 | [`envs/free/README.md`](envs/free/README.md) · [`envs/real/README.md`](envs/real/README.md) | perfis |
 | [`mcp/README.md`](mcp/README.md) | servidores MCP e ativação |
 | [`docs/IAM_ROLES.md`](docs/IAM_ROLES.md) | todas as roles/políticas (curso + plano), quem usa, permissões, stack |
+| [`docs/GUIA_DE_ESTUDO.md`](docs/GUIA_DE_ESTUDO.md) | **guia de estudo**: todo o código fora da AWS explicado (orquestrador, alvo duplo no Terraform, emulador, GitOps gerado, imagens, contratos, Lambda empacotada, e2e, evidências mascaradas, offload, MCP via JSON-RPC, CI), roteiro para replicar do zero e exercícios |
 | [`docs/AWS_REAL_SESSION.md`](docs/AWS_REAL_SESSION.md) | sessão real de 11/11/2026: linha do tempo, o que cada camada provou, achados, custo por serviço, desmonte nas 17 regiões, MCP na conta |
 | [`docs/AWS_REAL_MCP_RUNBOOK.md`](docs/AWS_REAL_MCP_RUNBOOK.md) | sessões na AWS real via MCP, custos, e o que acontece quando os créditos acabam |
 | [`docs/plans/`](docs/plans/) | planos v0.1 → v0.2 → ação v1 → 2 dias |

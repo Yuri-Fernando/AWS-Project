@@ -41,3 +41,7 @@ desktop.ini
 
 # instaladores baixados por engano na raiz
 *.msi
+
+# Python
+__pycache__/
+*.pyc
